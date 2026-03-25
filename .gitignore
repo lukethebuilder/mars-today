@@ -2,3 +2,6 @@ node_modules/
 dist/
 .env
 .DS_Store
+
+# Cursor IDE — local plans and config (keep repo slim)
+.cursor/

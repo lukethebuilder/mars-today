@@ -1,4 +1,11 @@
 import { PhotoCard } from './PhotoCard.js'
+import { favouriteKey } from '../favourites.js'
+
+function cardCommentCount(commentCounts, p, photoSection) {
+  if (!(commentCounts instanceof Map) || !photoSection) return 0
+  const n = commentCounts.get(favouriteKey(p, photoSection))
+  return typeof n === 'number' && n > 0 ? n : 0
+}
 
 function skeletonCard(i) {
   return `
@@ -14,6 +21,16 @@ export function RoverGallery({
   loading = false,
   error = null,
   skeletonCount = 12,
+  usedMock = false,
+  headerRightLabel = 'latest photos',
+  sectionSubtitle = '',
+  showApodRefresh = false,
+  signUpNudgeHtml = '',
+  photoSection = '',
+  showFavourite = false,
+  favouriteKeys = null,
+  commentCounts = null,
+  interactive = false,
 }) {
   const body = (() => {
     if (loading) {
@@ -37,19 +54,60 @@ export function RoverGallery({
 
     return `
       <div class="photoGrid">
-        ${photos.slice(0, skeletonCount).map((p) => PhotoCard({ photo: p, roverLabel })).join('')}
+        ${photos
+          .slice(0, skeletonCount)
+          .map((p, i) =>
+            PhotoCard({
+              photo: p,
+              roverLabel,
+              showSampleBadge: usedMock,
+              showFavourite: showFavourite && Boolean(photoSection),
+              isFavourited:
+                favouriteKeys instanceof Set &&
+                favouriteKeys.has(favouriteKey(p, photoSection)),
+              photoSection,
+              photoIndex: i,
+              commentCount: cardCommentCount(commentCounts, p, photoSection),
+              interactive: interactive && Boolean(photoSection),
+            }),
+          )
+          .join('')}
       </div>
     `
   })()
 
+  const subtitleBlock =
+    sectionSubtitle && sectionSubtitle.length > 0
+      ? `<p class="roverSubtitle muted">${sectionSubtitle}</p>`
+      : ''
+
+  const titleRow = showApodRefresh
+    ? `
+        <div class="roverTitleRow">
+          <h2 class="roverTitle">${roverLabel}</h2>
+          <button type="button" class="apodRefreshBtn mono" aria-label="Load a new random selection from the archive">
+            ↻ New selection
+          </button>
+        </div>
+      `
+    : `<h2 class="roverTitle">${roverLabel}</h2>`
+
+  const nudgeBlock =
+    signUpNudgeHtml && signUpNudgeHtml.length > 0
+      ? `<p class="roverSignUpNudge muted">${signUpNudgeHtml}</p>`
+      : ''
+
   return `
     <section class="roverSection">
       <div class="roverHeader">
-        <h2 class="roverTitle">${roverLabel}</h2>
-        <div class="roverMeta mono">latest photos</div>
+        <div class="roverHeaderLeft">
+          ${titleRow}
+          ${subtitleBlock}
+        </div>
+        <div class="roverMeta mono">${headerRightLabel}</div>
       </div>
+      ${nudgeBlock}
       ${body}
     </section>
   `
 }
-

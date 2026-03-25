@@ -352,6 +352,59 @@ a {
   padding: 28px 16px 56px;
 }
 
+/* NASA API outage — mock data banner (amber, not error-red) */
+.nasaApiBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  margin: 0 0 8px;
+  border: 1px solid rgba(234, 179, 8, 0.38);
+  background: rgba(234, 179, 8, 0.09);
+  border-radius: 12px;
+  border-left: 3px solid rgba(250, 204, 21, 0.65);
+}
+
+.nasaApiBannerText {
+  margin: 0;
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #e7e5e4;
+}
+
+.nasaApiBannerText a {
+  color: #fbbf24;
+  text-decoration: underline;
+}
+
+.nasaApiBannerText a:hover {
+  color: #fde68a;
+}
+
+.nasaApiBannerLinkWrap {
+  display: block;
+  margin-top: 8px;
+}
+
+.nasaApiBannerClose {
+  flex-shrink: 0;
+  margin: -4px -6px 0 0;
+  padding: 4px 8px;
+  border: 0;
+  background: transparent;
+  color: rgba(253, 230, 138, 0.85);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.nasaApiBannerClose:hover {
+  background: rgba(234, 179, 8, 0.12);
+  color: #fef3c7;
+}
+
 .topBar {
   display: flex;
   flex-wrap: wrap;
@@ -382,6 +435,12 @@ a {
   line-height: 1.35;
 }
 
+.collectionCreatedBy {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
 .accentPill {
   margin-left: auto;
   padding: 10px 12px;
@@ -407,6 +466,92 @@ a {
   gap: 22px;
 }
 
+.welcomeStrip {
+  margin-top: 16px;
+}
+
+.welcomeStripGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+@media (min-width: 720px) {
+  .welcomeStripGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+}
+
+.welcomeCard {
+  border: 1px solid var(--border);
+  background: rgba(15, 16, 24, 0.85);
+  border-radius: 12px;
+  padding: 14px 12px;
+}
+
+.welcomeCardTitle {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.welcomeCardBody {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.sectionBridge {
+  margin: 0;
+  padding: 8px 12px;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.roverTitleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+
+.roverTitleRow .roverTitle {
+  margin: 0;
+}
+
+.apodRefreshBtn {
+  padding: 2px 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.apodRefreshBtn:hover {
+  color: var(--mars-accent);
+  text-decoration: underline;
+}
+
+.apodRefreshBtn:focus-visible {
+  outline: 1px solid rgba(193, 68, 14, 0.5);
+  outline-offset: 2px;
+}
+
+.roverSignUpNudge {
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.roverSignUpNudge .link {
+  font-weight: 500;
+}
+
 .roverSection {
   border: 1px solid var(--border);
   background: rgba(15, 16, 24, 0.85);
@@ -416,9 +561,14 @@ a {
 
 .roverHeader {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 12px;
+}
+
+.roverHeaderLeft {
+  min-width: 0;
 }
 
 .roverTitle {
@@ -427,10 +577,17 @@ a {
   letter-spacing: -0.01em;
 }
 
+.roverSubtitle {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .roverMeta {
-  margin-left: auto;
+  flex-shrink: 0;
   color: var(--muted);
   font-size: 12px;
+  padding-top: 2px;
 }
 
 .photoGrid {
@@ -456,10 +613,43 @@ a {
 .photoCard {
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(18, 19, 29, 0.7);
+  background: transparent;
   overflow: hidden;
   aspect-ratio: 1 / 1;
   box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+}
+
+.photoCardMedia {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  background: transparent;
+}
+
+.photoCardCaptionOverlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 10px 10px 8px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0.2) 70%, transparent);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.photoCard:hover .photoCardCaptionOverlay {
+  opacity: 1;
+}
+
+.photoCardCaptionText {
+  display: block;
+  font-size: 12px;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 500;
 }
 
 .photoImg {
@@ -468,6 +658,59 @@ a {
   object-fit: cover;
   display: block;
   background: #0b0c12;
+}
+
+.photoCardFavBtn {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  z-index: 2;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  line-height: 1;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+
+.photoCardFavBtn:hover {
+  background: rgba(193, 68, 14, 0.35);
+  transform: scale(1.05);
+}
+
+.photoCardFavBtn:focus-visible {
+  outline: 1px solid rgba(193, 68, 14, 0.6);
+  outline-offset: 2px;
+}
+
+.photoCardFavIcon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.photoSampleBadge {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  z-index: 2;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(0, 0, 0, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+  line-height: 1.2;
 }
 
 /* Skeletons */
@@ -526,6 +769,33 @@ a {
   flex: 1;
 }
 
+.siteFooter {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  background: rgba(7, 7, 11, 0.88);
+  padding: 16px;
+}
+
+.siteFooterInner {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.siteFooterLine {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.siteFooterTransparency {
+  font-size: 12px;
+  opacity: 0.92;
+}
+
 .navBar {
   position: sticky;
   top: 0;
@@ -552,6 +822,19 @@ a {
 
 .navBrand:hover {
   color: var(--mars-accent);
+}
+
+.navFavouritesLink {
+  font-size: 12px;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+
+.navFavouritesLink:hover {
+  color: var(--mars-accent);
+  background: rgba(193, 68, 14, 0.1);
 }
 
 .navActions {
@@ -613,7 +896,7 @@ a {
   background: rgba(0, 0, 0, 0.65);
   display: grid;
   place-items: center;
-  z-index: 50;
+  z-index: 85;
   padding: 16px;
 }
 
@@ -682,5 +965,433 @@ a {
 
 .authToggle {
   width: 100%;
+}
+
+/* Photo modal + comments + collections popover */
+.photoModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.78);
+  z-index: 60;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.photoModalInner {
+  position: relative;
+  max-width: 960px;
+  margin: 24px auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 16px 20px;
+  box-shadow: var(--shadow);
+}
+
+.photoModalClose {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 2;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+}
+
+.photoModalGrid {
+  display: grid;
+  gap: 16px;
+}
+
+@media (min-width: 900px) {
+  .photoModalGrid {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+.photoModalImgWrap {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: #0b0c12;
+}
+
+.photoModalImg {
+  width: 100%;
+  max-height: min(70vh, 720px);
+  object-fit: contain;
+  display: block;
+}
+
+.photoModalToolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.photoModalFavBtn,
+.photoModalFolderBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.photoModalFavBtn:hover,
+.photoModalFolderBtn:hover {
+  background: rgba(193, 68, 14, 0.25);
+}
+
+.photoModalCollWrap {
+  position: relative;
+}
+
+.photoModalCollPopover {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  min-width: 260px;
+  max-width: min(100vw - 32px, 320px);
+  padding: 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  z-index: 70;
+}
+
+.photoModalCollTitle {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.photoModalCollRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.photoModalCollList {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.photoModalCollEmpty {
+  margin: 0;
+  font-size: 12px;
+}
+
+.photoModalCollNew {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 8px;
+}
+
+.photoModalCollInput {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(7, 7, 11, 0.5);
+  color: var(--text);
+  font: inherit;
+}
+
+.photoModalCollCreate {
+  justify-self: start;
+}
+
+.photoModalMeta {
+  margin-bottom: 12px;
+}
+
+.photoModalMetaLine {
+  margin: 4px 0;
+  font-size: 13px;
+}
+
+.photoModalCommentsTitle {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+.photoModalCommentsLoading {
+  margin: 0;
+  font-size: 13px;
+}
+
+.photoModalCommentList {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.photoModalComment {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(7, 7, 11, 0.35);
+}
+
+.photoModalCommentHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.photoModalCommentAuthor {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.photoModalCommentTime {
+  font-size: 11px;
+}
+
+.photoModalCommentBody {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.photoModalCommentDel {
+  margin-top: 8px;
+  padding: 4px 8px;
+  font-size: 11px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.photoModalCommentDel:hover {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.45);
+}
+
+.photoModalCommentEmpty {
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+
+.photoModalLabel {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.photoModalTextarea {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(7, 7, 11, 0.5);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+  margin-bottom: 8px;
+}
+
+.photoModalComposerErr {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #f87171;
+}
+
+.photoCard--interactive {
+  cursor: pointer;
+}
+
+.photoCardCommentBadge {
+  position: absolute;
+  bottom: 7px;
+  left: 7px;
+  z-index: 2;
+  padding: 3px 7px;
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.2;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+}
+
+.collectionsSectionTitle {
+  margin: 0 0 14px;
+  font-size: 17px;
+}
+
+.collectionsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 640px) {
+  .collectionsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 960px) {
+  .collectionsGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.collectionCard {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  background: rgba(15, 16, 24, 0.85);
+  display: grid;
+  gap: 10px;
+}
+
+.collectionCardLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.collectionCardLink:hover .collectionCardTitle {
+  color: var(--mars-accent);
+}
+
+.collectionCardTitle {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+
+.collectionCardMeta {
+  margin: 0;
+  font-size: 12px;
+}
+
+.collectionPublicToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+/* Rover browse (sol / Earth date / camera) */
+.roverPageBody {
+  margin-top: 8px;
+}
+
+.roverBrowseBar {
+  margin: 16px 0 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(15, 16, 24, 0.85);
+  display: grid;
+  gap: 12px;
+}
+
+.roverBrowseModes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.roverModeBtn {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.roverModeBtn:hover {
+  color: var(--text);
+  border-color: rgba(193, 68, 14, 0.35);
+}
+
+.roverModeBtn--active {
+  color: var(--mars-accent);
+  border-color: rgba(193, 68, 14, 0.45);
+  background: rgba(193, 68, 14, 0.1);
+}
+
+.roverBrowseRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 12px;
+}
+
+.roverBrowseRow--camera {
+  align-items: flex-end;
+}
+
+.roverBrowseField {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.roverBrowseField--grow {
+  flex: 1;
+  min-width: 160px;
+}
+
+.roverSolInput,
+.roverDateInput,
+.roverCameraSelect {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(7, 7, 11, 0.5);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.roverSolInput {
+  width: 100px;
+}
+
+.roverCameraSelect {
+  width: 100%;
+  max-width: 320px;
+}
+
+.roverLoadMore {
+  justify-self: start;
 }
 

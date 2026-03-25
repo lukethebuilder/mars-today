@@ -10,6 +10,21 @@ if (app) {
     <div class="appShell">
       <header id="navMount" class="navBar"></header>
       <div id="pageMount" class="pageOutlet"></div>
+      <footer class="siteFooter" aria-label="Credits and transparency">
+        <div class="siteFooterInner">
+          <p class="siteFooterLine">
+            Created by
+            <a href="https://www.linkedin.com/in/lukehurt/" class="link" target="_blank" rel="noopener noreferrer">Luke Hurt</a>.
+          </p>
+          <p class="siteFooterLine siteFooterTransparency muted mono">
+            Transparency: built with
+            <a href="https://claude.ai" class="link" target="_blank" rel="noopener noreferrer">Claude</a>
+            1.1.8629 and
+            <a href="https://cursor.com" class="link" target="_blank" rel="noopener noreferrer">Cursor</a>
+            version 2.6.21.
+          </p>
+        </div>
+      </footer>
     </div>
   `
 }
