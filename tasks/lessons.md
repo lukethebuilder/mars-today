@@ -9,3 +9,11 @@ The NASA `latest_photos` endpoint can be empty or flaky. The `photos?earth_date=
 
 Sol-based queries match the documented API and are more reliable than Earth-date walks in practice.
 
+## NASA outage + UI development
+
+When `api.nasa.gov` is down, `getLatestPhotos()` falls back to a small hardcoded list of `mars.nasa.gov` image URLs shaped like NASA API photo objects so grids still render.
+
+## Supabase Auth + profiles
+
+Use `onAuthStateChange` and treat `INITIAL_SESSION` like a restored login so `profiles` is ensured after refresh, not only on `SIGNED_IN`.
+

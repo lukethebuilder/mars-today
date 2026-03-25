@@ -54,8 +54,9 @@ mars-today/
 │   ├── todo.md            ← active task checklist
 │   └── lessons.md         ← mistakes learned, patterns to follow
 └── src/
-    ├── main.js            ← app entry, router init
+    ├── main.js            ← app entry, shell layout, auth + nav + router init
     ├── style.css          ← global styles
+    ├── auth.js            ← Supabase session listener + profile bootstrap
     ├── supabase.js        ← supabase client singleton
     ├── nasa.js            ← NASA API functions
     ├── router.js          ← simple hash router (#/home, #/rover/curiosity, etc.)
@@ -151,7 +152,10 @@ const CAMERA_NAMES = {
 ```js
 // src/nasa.js
 const BASE = 'https://api.nasa.gov/mars-photos/api/v1'
-const KEY = import.meta.env.VITE_NASA_API_KEY
+const KEY = import.meta.env.VITE_NASA_API_KEY || 'DEMO_KEY'
+
+// getLatestPhotos tries the real API first; if it fails (outage, etc.), it returns
+// a small hardcoded set of mars.nasa.gov image URLs so the UI still works.
 
 export async function getLatestPhotos(rover) { ... }
 export async function getPhotosByDate(rover, earthDate, camera = null, page = 1) { ... }
@@ -354,9 +358,9 @@ dist/
 - [ ] Date picker: jump to any Earth date
 
 ### Phase 2 — Auth
-- [ ] Sign up / Log in modal (Supabase Auth, email + password)
-- [ ] Profile created on first login
-- [ ] Auth state persisted across page refreshes
+- [x] Sign up / Log in modal (Supabase Auth, email + password)
+- [x] Profile created on first login
+- [x] Auth state persisted across page refreshes
 
 ### Phase 3 — Social
 - [ ] Favourite a photo (heart button, requires auth)

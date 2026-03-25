@@ -9,7 +9,7 @@ const ROVERS = [
 let runId = 0
 
 function renderPage({ curiosity, perseverance }) {
-  const root = document.querySelector('#app')
+  const root = document.querySelector('#pageMount')
   if (!root) return
 
   root.innerHTML = `

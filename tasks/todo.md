@@ -5,7 +5,7 @@ Build `#/home` to display Curiosity + Perseverance “today’s” rover photos 
 
 ## Approach
 - Add the missing Phase 1 structure: hash router, NASA API helper, Home page, and small UI components.
-- Fetch both rover feeds concurrently from NASA’s `latest_photos` endpoint.
+- Fetch both rover feeds concurrently from the real NASA API (`latest_photos` → manifest + sol); if the API is down, use hardcoded `mars.nasa.gov` mocks.
 - Show a skeleton grid while loading; replace skeletons with real thumbnails on success; show a per-rover error panel on failure.
 - Enforce dark-only Mars styling with Mars red accent `#c1440e`.
 
@@ -17,6 +17,10 @@ Build `#/home` to display Curiosity + Perseverance “today’s” rover photos 
 - [x] `phase1-wireup`: Replace starter `src/main.js` to mount the router and default route `#/home`.
 - [x] `phase1-verify`: Run `npm run build` to verify no module/runtime errors.
 
-## Follow-up: NASA `latest_photos` fallback
-- [x] Update `src/nasa.js#getLatestPhotos()` to fall back to `photos?earth_date=...` and walk back up to 10 days.
+## Follow-up: NASA outage mock + Phase 2 auth
+- [x] `nasa-mock`: When the NASA API fails, `getLatestPhotos()` returns 3–4 hardcoded `mars.nasa.gov` image URLs per rover (API still attempted first).
+- [x] `phase2-supabase`: Add `src/supabase.js` client + `isSupabaseConfigured()`.
+- [x] `phase2-auth-ui`: Add `src/components/Auth.js` (email/password sign-in + sign-up modal) and `src/components/Nav.js`.
+- [x] `phase2-profile`: `src/auth.js` ensures a `profiles` row on `SIGNED_IN` / `INITIAL_SESSION`.
+- [x] `phase2-shell`: `main.js` renders `#navMount` + `#pageMount`; router targets `#pageMount`.
 

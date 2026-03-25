@@ -10,8 +10,7 @@ export function initRouter() {
   const render = () => {
     const route = getRoute()
 
-    // Simple hash router for static Pages deployment.
-    const root = document.querySelector('#app')
+    const root = document.querySelector('#pageMount')
     if (!root) return
 
     root.innerHTML = ''
