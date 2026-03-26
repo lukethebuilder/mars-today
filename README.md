@@ -79,4 +79,4 @@ public/           favicon.svg, icons.svg
 
 ## License
 
-No license file is included yet; add one if you open-source the project formally.
+No license file
