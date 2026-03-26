@@ -19,9 +19,8 @@ if (app) {
           <p class="siteFooterLine siteFooterTransparency muted mono">
             Transparency: built with
             <a href="https://claude.ai" class="link" target="_blank" rel="noopener noreferrer">Claude</a>
-            1.1.8629 and
-            <a href="https://cursor.com" class="link" target="_blank" rel="noopener noreferrer">Cursor</a>
-            version 2.6.21.
+            and
+            <a href="https://cursor.com" class="link" target="_blank" rel="noopener noreferrer">Cursor</a>.
           </p>
         </div>
       </footer>

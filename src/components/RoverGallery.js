@@ -1,11 +1,4 @@
 import { PhotoCard } from './PhotoCard.js'
-import { favouriteKey } from '../favourites.js'
-
-function cardCommentCount(commentCounts, p, photoSection) {
-  if (!(commentCounts instanceof Map) || !photoSection) return 0
-  const n = commentCounts.get(favouriteKey(p, photoSection))
-  return typeof n === 'number' && n > 0 ? n : 0
-}
 
 function skeletonCard(i) {
   return `
@@ -29,7 +22,6 @@ export function RoverGallery({
   photoSection = '',
   showFavourite = false,
   favouriteKeys = null,
-  commentCounts = null,
   interactive = false,
 }) {
   const body = (() => {
@@ -67,7 +59,6 @@ export function RoverGallery({
                 favouriteKeys.has(favouriteKey(p, photoSection)),
               photoSection,
               photoIndex: i,
-              commentCount: cardCommentCount(commentCounts, p, photoSection),
               interactive: interactive && Boolean(photoSection),
             }),
           )

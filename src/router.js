@@ -2,7 +2,6 @@ import { getHashRoute } from './routeUtils.js'
 import { renderHome } from './pages/Home.js'
 import { renderFavourites } from './pages/Favourites.js'
 import { renderCollectionsList, renderCollectionDetail } from './pages/Collection.js'
-import { renderRover } from './pages/Rover.js'
 
 export function initRouter() {
   const render = () => {
@@ -31,11 +30,6 @@ export function initRouter() {
     const detailMatch = /^\/collections\/(\d+)$/.exec(path)
     if (detailMatch) {
       renderCollectionDetail(detailMatch[1])
-      return
-    }
-
-    if (path === '/rover/curiosity') {
-      renderRover(searchParams)
       return
     }
 

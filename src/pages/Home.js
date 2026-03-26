@@ -1,17 +1,15 @@
-import { getLatestPhotos, getAPODPhotos } from '../nasa.js'
-import { RoverGallery } from '../components/RoverGallery.js'
+import { CURIOSITY_INSTRUMENTS, getCuriosityPhotosBySol, getLatestCuriositySol } from '../nasa.js'
 import { openAuthModal } from '../components/Auth.js'
 import { openPhotoModal } from '../components/PhotoModal.js'
 import { supabase, isSupabaseConfigured } from '../supabase.js'
-import { alertIfFavouriteFailed, fetchFavouriteKeys, toggleFavourite } from '../favourites.js'
-import { fetchCommentCountsMap } from '../comments.js'
+import { alertIfFavouriteFailed, favouriteKey, fetchFavouriteKeys, toggleFavourite } from '../favourites.js'
+import { PhotoCard } from '../components/PhotoCard.js'
+import { getHashRoute } from '../routeUtils.js'
 
 const NASA_BANNER_DISMISS_KEY = 'marsTodayNasaApiBannerDismissed'
 
-/** Incremented on each APOD fetch (initial or refresh); stale responses are ignored. */
-let apodLoadId = 0
 let marsAuthHandler = null
-let marsCommentsHandler = null
+let loadId = 0
 
 function isNasaApiBannerDismissed() {
   try {
@@ -21,56 +19,12 @@ function isNasaApiBannerDismissed() {
   }
 }
 
-function curiositySectionSubtitle(photos) {
-  const first = photos && photos[0]
-  const sol = first != null && first.sol != null ? String(first.sol) : '—'
-  return `Sol ${sol} · Latest from Mars surface · <a href="#/rover/curiosity" class="link">Browse by sol</a>`
-}
-
-function welcomeStripHtml() {
-  return `
-    <div class="welcomeStrip">
-      <div class="welcomeStripGrid">
-        <div class="welcomeCard">
-          <p class="welcomeCardTitle">🔴 Raw from Mars</p>
-          <p class="welcomeCardBody muted">
-            These are unedited photos taken by NASA's Curiosity rover on the surface of Mars today. No filters, no processing.
-          </p>
-        </div>
-        <div class="welcomeCard">
-          <p class="welcomeCardTitle">🌌 From the archive</p>
-          <p class="welcomeCardBody muted">
-            Curated astronomy images from NASA's daily photo program going back to 1995. Hit refresh for a new selection.
-          </p>
-        </div>
-        <div class="welcomeCard">
-          <p class="welcomeCardTitle">❤️ Save your favourites</p>
-          <p class="welcomeCardBody muted">
-            Sign up to heart photos and build personal collections. Free, no spam.
-          </p>
-        </div>
-      </div>
-    </div>
-  `
-}
-
-function sectionBridgeHtml() {
-  return `
-    <p class="sectionBridge mono muted" role="presentation">
-      — while Curiosity explores Mars, here's what else is out there —
-    </p>
-  `
-}
-
-function signUpNudgeHtml() {
-  return `Sign up to ❤️ favourite photos and save collections.`.replace(
-    'Sign up',
-    '<a href="#" class="link homeSignUpLink">Sign up</a>',
-  )
-}
-
-function loggedInFavouritesNudgeHtml() {
-  return `Tap ♡ to save · click a photo for full size and comments. <a href="#/favourites" class="link">Favourites</a> · <a href="#/collections" class="link">Collections</a>`
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
 }
 
 let runId = 0
@@ -82,52 +36,149 @@ export async function renderHome() {
     window.removeEventListener('mars-auth', marsAuthHandler)
     marsAuthHandler = null
   }
-  if (marsCommentsHandler) {
-    window.removeEventListener('mars-comments-changed', marsCommentsHandler)
-    marsCommentsHandler = null
-  }
 
   const skeletonCount = 12
+  const perPage = skeletonCount
   const state = {
-    curiosity: {
-      photos: [],
-      loading: true,
-      error: null,
-      skeletonCount,
-      usedMock: false,
-    },
-    apod: {
-      photos: [],
-      loading: true,
-      error: null,
-      skeletonCount,
-      usedMock: false,
-    },
-    userLoggedIn: false,
+    sol: 0,
+    camera: '',
+    photos: [],
+    loading: true,
+    error: null,
+    noResults: false,
+    usedMock: false,
+    apiMore: false,
+    apiPage: 0,
     favouriteKeys: new Set(),
-    commentCounts: new Map(),
   }
 
-  function scheduleCommentCounts() {
-    if (!isSupabaseConfigured()) return
-    const c = state.curiosity.photos
-    const a = state.apod.photos
-    if (!c.length && !a.length) return
-    fetchCommentCountsMap(c, a).then((map) => {
-      if (myRunId !== runId) return
-      state.commentCounts = map
-      renderPage()
-    })
+  function selectedCameraLabel() {
+    if (!state.camera) return 'All cameras'
+    const match = CURIOSITY_INSTRUMENTS.find((o) => o.value === state.camera)
+    return match?.label || state.camera
+  }
+
+  function solControlsHtml() {
+    const camOpts = CURIOSITY_INSTRUMENTS.map(
+      (o) =>
+        `<option value="${escapeHtml(o.value)}" ${state.camera === o.value ? 'selected' : ''}>${escapeHtml(o.label)}</option>`,
+    ).join('')
+
+    const prevDisabled = state.loading || state.sol <= 0 ? 'disabled' : ''
+    const nextDisabled = state.loading ? 'disabled' : ''
+
+    return `
+      <div class="solControlsBar mono">
+        <div class="solRow" aria-label="Browse photos by day">
+          <button
+            type="button"
+            class="btnGhost solNavBtn"
+            id="homePrevSol"
+            aria-label="Browse older photos"
+            ${prevDisabled}
+          >
+            ‹ Older photos
+          </button>
+
+          <span class="solNumberWrap" aria-label="Current sol">
+            <span class="muted">Sol</span>
+            <span class="solNumber mono" id="homeSolNumber">${escapeHtml(state.sol)}</span>
+          </span>
+
+          <button
+            type="button"
+            class="btnGhost solNavBtn"
+            id="homeNextSol"
+            aria-label="Browse newer photos"
+            ${nextDisabled}
+          >
+            Newer photos ›
+          </button>
+        </div>
+
+        <label class="homeCameraSelectLabel roverBrowseField roverBrowseField--grow">
+          <span class="muted">Camera</span>
+          <select class="roverCameraSelect mono" id="homeCameraSelect" ${state.loading ? 'disabled' : ''}>
+            ${camOpts}
+          </select>
+        </label>
+      </div>
+    `
+  }
+
+  function skeletonCard(i) {
+    return `
+      <article class="photoCard skeleton" aria-hidden="true" data-skel="${i}">
+        <div class="skeletonImg" />
+      </article>
+    `
+  }
+
+  function photoGridHtml() {
+    if (state.loading) {
+      return `
+        <div class="photoGrid">
+          ${Array.from({ length: skeletonCount })
+            .map((_, i) => skeletonCard(i))
+            .join('')}
+        </div>
+      `
+    }
+
+    if (state.error) {
+      return `
+        <div class="panel">
+          <p class="muted">Could not load Curiosity photos.</p>
+          <p class="mono">${escapeHtml(String(state.error?.message || state.error))}</p>
+        </div>
+      `
+    }
+
+    if (state.noResults) {
+      const camLabel = selectedCameraLabel()
+      const solLabel = String(state.sol)
+      const resetBtn =
+        state.camera && state.camera !== ''
+          ? `<button type="button" class="btnGhost mono" id="homeResetCamera">All cameras</button>`
+          : ''
+      const details = state.apiMore
+        ? `No photos for ${camLabel} on this day yet. Try “Load more photos” to search earlier frames.`
+        : `No photos for ${camLabel} on this day yet. Some cameras update only occasionally — try another day or switch to “All cameras”.`
+      return `
+        <div class="panel homeNoResultsPanel">
+          <p class="muted">${escapeHtml(details)}</p>
+          ${resetBtn}
+        </div>
+      `
+    }
+
+    const photoSection = 'curiosity'
+    const roverLabel = 'Curiosity'
+    const interactive = !state.loading && !state.error
+
+    const showFavourite = isSupabaseConfigured()
+    const cards = state.photos.map((p, i) => {
+        const isFavourited = state.favouriteKeys instanceof Set && state.favouriteKeys.has(favouriteKey(p, photoSection))
+        return PhotoCard({
+          photo: p,
+          roverLabel,
+          showSampleBadge: state.usedMock === true,
+          showFavourite,
+          isFavourited,
+          photoSection,
+          photoIndex: i,
+          interactive,
+        })
+      }).join('')
+
+    return `<div class="photoGrid">${cards}</div>`
   }
 
   function renderPage() {
     const root = document.querySelector('#pageMount')
     if (!root) return
 
-    const { curiosity, apod } = state
-    const nasaApiUnavailable =
-      curiosity.usedMock === true || apod.usedMock === true
-    const showBanner = nasaApiUnavailable && !isNasaApiBannerDismissed()
+    const showBanner = state.usedMock === true && !isNasaApiBannerDismissed()
 
     root.innerHTML = `
     <div class="page">
@@ -147,61 +198,31 @@ export async function renderHome() {
       `
           : ''
       }
-      <header class="topBar">
+      <header class="heroStrip">
         <div>
           <h1 class="appTitle">Mars Today</h1>
           <p class="subtitle muted">
-            Daily raw photos from NASA's Curiosity rover on Mars, alongside stunning imagery from the universe.
+            Real photos beamed back from Mars — updated every sol (a Martian day, ~24h 37m).
+          </p>
+          <p class="subtitle muted">
+            Taken by NASA's Curiosity rover, exploring Mars since 2012.
           </p>
         </div>
-        <div class="accentPill mono">latest photos</div>
       </header>
 
-      ${welcomeStripHtml()}
-
       <main class="pageBody">
-        ${RoverGallery({
-          roverLabel: 'Curiosity',
-          photos: curiosity.photos,
-          loading: curiosity.loading,
-          error: curiosity.error,
-          skeletonCount: curiosity.skeletonCount,
-          usedMock: curiosity.usedMock === true,
-          headerRightLabel: 'latest photos',
-          sectionSubtitle: curiositySectionSubtitle(curiosity.photos),
-          showApodRefresh: false,
-          signUpNudgeHtml: state.userLoggedIn
-            ? isSupabaseConfigured()
-              ? loggedInFavouritesNudgeHtml()
-              : ''
-            : signUpNudgeHtml(),
-          photoSection: 'curiosity',
-          showFavourite: state.userLoggedIn && isSupabaseConfigured(),
-          favouriteKeys: state.favouriteKeys,
-          commentCounts: state.commentCounts,
-          interactive: !curiosity.loading && !curiosity.error,
-        })}
+        ${solControlsHtml()}
+        ${photoGridHtml()}
 
-        ${sectionBridgeHtml()}
-
-        ${RoverGallery({
-          roverLabel: 'From the Universe',
-          photos: apod.photos,
-          loading: apod.loading,
-          error: apod.error,
-          skeletonCount: apod.skeletonCount,
-          usedMock: apod.usedMock === true,
-          headerRightLabel: 'random selection from archive',
-          sectionSubtitle:
-            'Refreshes every visit · NASA astronomy archive 1995–present',
-          showApodRefresh: true,
-          signUpNudgeHtml: '',
-          photoSection: 'apod',
-          showFavourite: state.userLoggedIn && isSupabaseConfigured(),
-          favouriteKeys: state.favouriteKeys,
-          commentCounts: state.commentCounts,
-          interactive: !apod.loading && !apod.error,
-        })}
+        ${
+          !state.loading && !state.error && state.apiMore
+            ? `
+          <div class="homeLoadMoreWrap">
+            <button type="button" class="btnGhost mono" id="homeLoadMore">Load more photos</button>
+          </div>
+          `
+            : ''
+        }
       </main>
     </div>
   `
@@ -215,25 +236,54 @@ export async function renderHome() {
       renderPage()
     })
 
-    root.querySelector('.homeSignUpLink')?.addEventListener('click', (e) => {
-      e.preventDefault()
-      openAuthModal({ mode: 'signup' })
+    root.querySelector('#homePrevSol')?.addEventListener('click', () => {
+      if (state.loading) return
+      const nextSol = Math.max(0, state.sol - 1)
+      if (nextSol === state.sol) return
+      state.sol = nextSol
+      state.apiPage = 0
+      state.apiMore = false
+      state.photos = []
+      fetchCuriositySol({ reset: true })
+    })
+
+    root.querySelector('#homeNextSol')?.addEventListener('click', () => {
+      if (state.loading) return
+      state.sol += 1
+      state.apiPage = 0
+      state.apiMore = false
+      state.photos = []
+      fetchCuriositySol({ reset: true })
+    })
+
+    root.querySelector('#homeCameraSelect')?.addEventListener('change', (e) => {
+      const v = (e.target?.value || '').trim()
+      if (v === state.camera) return
+      state.camera = v
+      state.apiPage = 0
+      state.apiMore = false
+      state.photos = []
+      state.noResults = false
+      fetchCuriositySol({ reset: true })
+    })
+
+    root.querySelector('#homeResetCamera')?.addEventListener('click', () => {
+      state.camera = ''
+      state.apiPage = 0
+      state.apiMore = false
+      state.photos = []
+      state.noResults = false
+      fetchCuriositySol({ reset: true })
     })
 
     root.querySelectorAll('.photoCardFavBtn').forEach((btn) => {
       btn.addEventListener('click', async (e) => {
         e.preventDefault()
         e.stopPropagation()
-        const section = btn.dataset.photoSection
         const i = Number(btn.dataset.photoIndex)
-        if (!section || Number.isNaN(i)) return
-        const photo =
-          section === 'curiosity'
-            ? state.curiosity.photos[i]
-            : state.apod.photos[i]
+        const photo = state.photos[i]
         if (!photo) return
-        const src = section === 'apod' ? 'apod' : 'curiosity'
-        const res = await toggleFavourite(photo, src)
+        const res = await toggleFavourite(photo, 'curiosity')
         if (!res.ok) {
           if (res.reason === 'auth') openAuthModal({ mode: 'signin' })
           else alertIfFavouriteFailed(res)
@@ -247,73 +297,81 @@ export async function renderHome() {
     root.querySelectorAll('.photoCard--interactive').forEach((card) => {
       card.addEventListener('click', (e) => {
         if (e.target.closest('.photoCardFavBtn')) return
-        const section = card.dataset.photoSection
         const i = Number(card.dataset.photoIndex)
-        if (!section || Number.isNaN(i)) return
-        const photo =
-          section === 'curiosity'
-            ? state.curiosity.photos[i]
-            : state.apod.photos[i]
+        const photo = state.photos[i]
         if (!photo) return
-        const src = section === 'apod' ? 'apod' : 'curiosity'
-        const roverLabel = section === 'apod' ? 'From the Universe' : 'Curiosity'
         openPhotoModal({
           photo,
-          source: src,
-          roverLabel,
-          onClosed: () => scheduleCommentCounts(),
+          source: 'curiosity',
+          roverLabel: 'Curiosity',
         })
       })
     })
 
-    root.querySelector('.apodRefreshBtn')?.addEventListener('click', () => {
-      const loadId = ++apodLoadId
-      state.apod = {
-        ...state.apod,
-        loading: true,
-        photos: [],
-        error: null,
-      }
-      renderPage()
-      getAPODPhotos()
-        .then((result) => {
-          if (loadId !== apodLoadId) return
-          if (myRunId !== runId) return
-          const photos = Array.isArray(result?.photos) ? result.photos : []
-          const usedMock = result?.usedMock === true
-          state.apod = {
-            ...state.apod,
-            photos,
-            loading: false,
-            error: null,
-            usedMock,
-          }
-          renderPage()
-          scheduleCommentCounts()
-        })
-        .catch((err) => {
-          if (loadId !== apodLoadId) return
-          if (myRunId !== runId) return
-          state.apod = {
-            ...state.apod,
-            photos: [],
-            loading: false,
-            error: err,
-            usedMock: false,
-          }
-          renderPage()
-        })
+    root.querySelector('#homeLoadMore')?.addEventListener('click', async () => {
+      if (state.loading || !state.apiMore) return
+      await fetchCuriositySol({ reset: false })
     })
   }
 
+  async function fetchCuriositySol({ reset }) {
+    if (myRunId !== runId) return
+    const nextLoadId = ++loadId
+    state.loading = true
+    state.error = null
+    state.noResults = false
+    if (reset) {
+      state.photos = []
+      state.apiPage = 0
+      state.apiMore = false
+      state.noResults = false
+    }
+    renderPage()
+
+    const page = reset ? 0 : state.apiPage
+    try {
+      const result = await getCuriosityPhotosBySol(state.sol, {
+        page,
+        camera: state.camera,
+        perPage,
+      })
+      if (nextLoadId !== loadId) return
+      if (myRunId !== runId) return
+      if (getHashRoute().path !== '/home') return
+
+      const photos = Array.isArray(result?.photos) ? result.photos : []
+      const usedMock = result?.usedMock === true
+      if (reset) state.photos = photos
+      else state.photos = [...state.photos, ...photos]
+
+      state.usedMock = usedMock
+      state.apiMore = result?.more === true
+      state.apiPage = page + 1
+      state.loading = false
+      state.error = null
+      state.noResults = state.photos.length === 0
+
+      // No results are shown via the explicit empty-state, not as an error panel.
+      renderPage()
+    } catch (err) {
+      if (nextLoadId !== loadId) return
+      if (myRunId !== runId) return
+      if (getHashRoute().path !== '/home') return
+      state.loading = false
+      state.error = err
+      state.noResults = false
+      renderPage()
+    }
+  }
+
   function syncAuthFromSession() {
-    if (!isSupabaseConfigured()) return
     supabase.auth
       .getSession()
       .then(async ({ data: { session } }) => {
         if (myRunId !== runId) return
-        state.userLoggedIn = !!session?.user
-        if (state.userLoggedIn) {
+        if (getHashRoute().path !== '/home') return
+        const userLoggedIn = !!session?.user
+        if (userLoggedIn) {
           state.favouriteKeys = await fetchFavouriteKeys()
         } else {
           state.favouriteKeys = new Set()
@@ -329,74 +387,20 @@ export async function renderHome() {
   window.addEventListener('mars-auth', marsAuthHandler)
   queueMicrotask(syncAuthFromSession)
 
-  marsCommentsHandler = () => {
-    if (myRunId !== runId) return
-    scheduleCommentCounts()
-  }
-  window.addEventListener('mars-comments-changed', marsCommentsHandler)
-
   // Paint immediately — router cleared #pageMount; do not await Supabase before first render.
   renderPage()
 
-  const initialApodLoadId = ++apodLoadId
-
-  const tasks = [
-    getLatestPhotos('curiosity')
-      .then((result) => {
-        if (myRunId !== runId) return
-        const photos = Array.isArray(result?.photos) ? result.photos : []
-        const usedMock = result?.usedMock === true
-        state.curiosity = {
-          ...state.curiosity,
-          photos,
-          loading: false,
-          error: null,
-          usedMock,
-        }
-        renderPage()
-        scheduleCommentCounts()
-      })
-      .catch((err) => {
-        if (myRunId !== runId) return
-        state.curiosity = {
-          ...state.curiosity,
-          photos: [],
-          loading: false,
-          error: err,
-          usedMock: false,
-        }
-        renderPage()
-      }),
-
-    getAPODPhotos()
-      .then((result) => {
-        if (initialApodLoadId !== apodLoadId) return
-        if (myRunId !== runId) return
-        const photos = Array.isArray(result?.photos) ? result.photos : []
-        const usedMock = result?.usedMock === true
-        state.apod = {
-          ...state.apod,
-          photos,
-          loading: false,
-          error: null,
-          usedMock,
-        }
-        renderPage()
-        scheduleCommentCounts()
-      })
-      .catch((err) => {
-        if (initialApodLoadId !== apodLoadId) return
-        if (myRunId !== runId) return
-        state.apod = {
-          ...state.apod,
-          photos: [],
-          loading: false,
-          error: err,
-          usedMock: false,
-        }
-        renderPage()
-      }),
-  ]
-
-  return Promise.allSettled(tasks)
+  getLatestCuriositySol()
+    .then((latest) => {
+      if (myRunId !== runId) return
+      if (getHashRoute().path !== '/home') return
+      state.sol = Number.isFinite(latest) && latest >= 0 ? Math.floor(latest) : 0
+      fetchCuriositySol({ reset: true })
+    })
+    .catch(() => {
+      if (myRunId !== runId) return
+      if (getHashRoute().path !== '/home') return
+      state.sol = 0
+      fetchCuriositySol({ reset: true })
+    })
 }

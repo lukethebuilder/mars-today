@@ -1,3 +1,5 @@
+import { cameraCodeToLabel } from '../nasa.js'
+
 function escapeHtml(s) {
   return String(s)
     .replace(/&/g, '&amp;')
@@ -11,9 +13,7 @@ function hoverCaption(photo, roverLabel) {
   if (roverLabel === 'From the Universe') {
     return photo.camera?.name || 'APOD'
   }
-  const cam = String(photo.camera?.name || 'Camera')
-    .replace(/_/g, ' ')
-    .toUpperCase()
+  const cam = photo.camera?.name ? cameraCodeToLabel(photo.camera.name) : 'Camera'
   const sol = photo.sol != null ? String(photo.sol) : '—'
   const date = photo.earth_date || '—'
   return `${cam} · Sol ${sol} · ${date}`
@@ -27,15 +27,14 @@ export function PhotoCard({
   isFavourited = false,
   photoSection = '',
   photoIndex = 0,
-  commentCount = 0,
   interactive = false,
 }) {
   if (!photo) return ''
 
   const roverName = photo.rover?.name || roverLabel || 'Rover'
-  const cameraName = photo.camera?.name || 'Camera'
+  const cameraLabel = photo.camera?.name ? cameraCodeToLabel(photo.camera.name) : 'Camera'
   const alt = escapeHtml(
-    `${roverName} - ${cameraName} (${photo.earth_date || 'unknown date'})`,
+    `${roverName} - ${cameraLabel} (${photo.earth_date || 'unknown date'})`,
   )
 
   const badge = showSampleBadge
@@ -60,11 +59,6 @@ export function PhotoCard({
   `
       : ''
 
-  const commentBadge =
-    commentCount > 0
-      ? `<span class="photoCardCommentBadge mono" aria-label="${commentCount} comments">💬 ${commentCount}</span>`
-      : ''
-
   const interactiveClass = interactive ? ' photoCard--interactive' : ''
   const sectionAttr =
     interactive && photoSection
@@ -85,7 +79,6 @@ export function PhotoCard({
           <span class="photoCardCaptionText">${caption}</span>
         </div>
         ${favBtn}
-        ${commentBadge}
         ${badge}
       </div>
     </article>

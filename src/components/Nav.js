@@ -14,7 +14,6 @@ function signedOutHtml() {
     <div class="navInner">
       <a href="#/home" class="navBrand">Mars Today</a>
       <div class="navActions">
-        <a href="#/rover/curiosity" class="navFavouritesLink mono">Curiosity</a>
         <button type="button" class="btnPrimary" id="navSignIn">Sign in</button>
         <button type="button" class="btnGhost" id="navSignUp">Sign up</button>
       </div>
@@ -22,13 +21,12 @@ function signedOutHtml() {
   `
 }
 
-function signedInHtml(user) {
-  const label = user?.email ? escapeHtml(user.email) : ''
+function signedInHtml(displayLabel) {
+  const label = displayLabel ? escapeHtml(displayLabel) : ''
   return `
     <div class="navInner">
       <a href="#/home" class="navBrand">Mars Today</a>
       <div class="navActions">
-        <a href="#/rover/curiosity" class="navFavouritesLink mono">Curiosity</a>
         <a href="#/favourites" class="navFavouritesLink mono">Favourites</a>
         <a href="#/collections" class="navFavouritesLink mono">Collections</a>
         <span class="userLabel mono">${label}</span>
@@ -53,10 +51,29 @@ function wireNavActions(mount) {
 export function initNav(mount) {
   if (!mount) return
 
-  function applySessionNav(session) {
+  async function applySessionNav(session) {
     if (!isSupabaseConfigured()) return
     const user = session?.user ?? null
-    mount.innerHTML = user ? signedInHtml(user) : signedOutHtml()
+    if (!user) {
+      mount.innerHTML = signedOutHtml()
+      wireNavActions(mount)
+      return
+    }
+
+    let displayLabel = user?.email ? String(user.email) : ''
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (profile?.username) displayLabel = profile.username
+    } catch {
+      /* ignore profile lookup failures */
+    }
+
+    mount.innerHTML = signedInHtml(displayLabel)
     wireNavActions(mount)
   }
 
@@ -65,7 +82,7 @@ export function initNav(mount) {
     supabase.auth
       .getSession()
       .then(({ data: { session } }) => {
-        applySessionNav(session)
+        void applySessionNav(session)
       })
       .catch(() => {
         mount.innerHTML = signedOutHtml()
@@ -82,7 +99,6 @@ export function initNav(mount) {
       <div class="navInner">
         <a href="#/home" class="navBrand">Mars Today</a>
         <div class="navActions">
-          <a href="#/rover/curiosity" class="navFavouritesLink mono">Curiosity</a>
           <span class="navMuted mono">Supabase in .env for sign-in & saves</span>
         </div>
       </div>

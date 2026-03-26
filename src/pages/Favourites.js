@@ -7,7 +7,6 @@ import {
 import { supabase, isSupabaseConfigured } from '../supabase.js'
 import { PhotoCard } from '../components/PhotoCard.js'
 import { openPhotoModal } from '../components/PhotoModal.js'
-import { fetchCommentCountsForRows } from '../comments.js'
 
 export async function renderFavourites() {
   const root = document.querySelector('#pageMount')
@@ -57,38 +56,28 @@ export async function renderFavourites() {
   `
 
   const rows = await fetchFavouriteRows()
+  const curiosityRows = (rows || []).filter((r) => r.rover !== 'apod')
   const loading = root.querySelector('#favouritesLoading')
   const grid = root.querySelector('#favouritesGrid')
   const empty = root.querySelector('#favouritesEmpty')
   if (loading) loading.hidden = true
 
-  if (!rows.length) {
+  if (!curiosityRows.length) {
     empty.hidden = false
     return
   }
 
-  const rowsForCounts = rows.map((r) => ({
-    rover: r.rover,
-    nasa_photo_id: r.nasa_photo_id,
-  }))
-  const commentCounts = await fetchCommentCountsForRows(rowsForCounts)
-
-  grid.innerHTML = rows
+  grid.innerHTML = curiosityRows
     .map((row, index) => {
       const photo = rowToPhoto(row)
-      const isApod = row.rover === 'apod'
-      const section = isApod ? 'apod' : 'curiosity'
-      const key = `${row.rover}:${row.nasa_photo_id}`
-      const cc = commentCounts.get(key) || 0
       return PhotoCard({
         photo,
-        roverLabel: isApod ? 'From the Universe' : 'Curiosity',
+        roverLabel: 'Curiosity',
         showSampleBadge: false,
         showFavourite: true,
         isFavourited: true,
-        photoSection: section,
+        photoSection: 'curiosity',
         photoIndex: index,
-        commentCount: cc,
         interactive: true,
       })
     })
@@ -101,11 +90,10 @@ export async function renderFavourites() {
       e.preventDefault()
       e.stopPropagation()
       const index = Number(btn.dataset.photoIndex)
-      const row = rows[index]
+      const row = curiosityRows[index]
       if (!row) return
       const photo = rowToPhoto(row)
-      const source = row.rover === 'apod' ? 'apod' : 'curiosity'
-      const res = await toggleFavourite(photo, source)
+      const res = await toggleFavourite(photo, 'curiosity')
       if (!res.ok) {
         if (res.reason !== 'auth') alertIfFavouriteFailed(res)
         return
@@ -118,15 +106,13 @@ export async function renderFavourites() {
     card.addEventListener('click', (e) => {
       if (e.target.closest('.photoCardFavBtn')) return
       const index = Number(card.dataset.photoIndex)
-      const row = rows[index]
+      const row = curiosityRows[index]
       if (!row) return
       const photo = rowToPhoto(row)
-      const src = row.rover === 'apod' ? 'apod' : 'curiosity'
-      const roverLabel = src === 'apod' ? 'From the Universe' : 'Curiosity'
       openPhotoModal({
         photo,
-        source: src,
-        roverLabel,
+        source: 'curiosity',
+        roverLabel: 'Curiosity',
         onClosed: () => renderFavourites(),
       })
     })

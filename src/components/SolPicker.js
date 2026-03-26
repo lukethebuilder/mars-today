@@ -9,14 +9,11 @@ function escapeHtml(s) {
 }
 
 /**
- * Curiosity rover browse: sol / Earth date, camera, prev-next, apply.
+ * Curiosity rover browse: sol prev/next and camera (no Earth date inputs).
  */
 export function roverBrowseControlsHtml({
-  mode = 'sol',
   sol = 0,
-  earthDate = '',
   camera = '',
-  apiMore = false,
   loading = false,
 }) {
   const camOpts = CURIOSITY_INSTRUMENTS.map(
@@ -25,31 +22,12 @@ export function roverBrowseControlsHtml({
   ).join('')
 
   const solDisabled = loading ? 'disabled' : ''
-  const earthMode = mode === 'earth'
-
   return `
     <div class="roverBrowseBar">
-      <div class="roverBrowseModes mono">
-        <button type="button" class="roverModeBtn ${!earthMode ? 'roverModeBtn--active' : ''}" data-rover-mode="sol">By sol</button>
-        <button type="button" class="roverModeBtn ${earthMode ? 'roverModeBtn--active' : ''}" data-rover-mode="earth">By Earth date</button>
-      </div>
-
-      <div class="roverBrowseRow" id="roverBrowseSolRow" ${earthMode ? 'hidden' : ''}>
-        <button type="button" class="btnGhost roverSolNav" data-sol-delta="-1" aria-label="Previous sol" ${solDisabled}>← Prev sol</button>
-        <label class="roverBrowseField">
-          <span class="muted">Sol</span>
-          <input type="number" class="roverSolInput mono" id="roverSolInput" min="0" max="25000" value="${sol}" ${solDisabled} />
-        </label>
-        <button type="button" class="btnGhost roverSolNav" data-sol-delta="1" aria-label="Next sol" ${solDisabled}>Next sol →</button>
-        <button type="button" class="btnPrimary" id="roverApplySol" ${solDisabled}>Apply</button>
-      </div>
-
-      <div class="roverBrowseRow" id="roverBrowseEarthRow" ${!earthMode ? 'hidden' : ''}>
-        <label class="roverBrowseField">
-          <span class="muted">Earth date</span>
-          <input type="date" class="roverDateInput mono" id="roverEarthDateInput" value="${escapeHtml(earthDate)}" ${solDisabled} />
-        </label>
-        <button type="button" class="btnPrimary" id="roverApplyEarth" ${solDisabled}>Find photos</button>
+      <div class="roverBrowseRow">
+        <button type="button" class="btnGhost roverSolNav" data-sol-delta="-1" aria-label="Previous sol" ${solDisabled}>‹</button>
+        <span class="roverSolNumber mono" aria-label="Current sol">${escapeHtml(sol)}</span>
+        <button type="button" class="btnGhost roverSolNav" data-sol-delta="1" aria-label="Next sol" ${solDisabled}>›</button>
       </div>
 
       <div class="roverBrowseRow roverBrowseRow--camera">
@@ -59,14 +37,8 @@ export function roverBrowseControlsHtml({
             ${camOpts}
           </select>
         </label>
-        <button type="button" class="btnGhost" id="roverApplyCamera" ${solDisabled}>Apply camera</button>
+        <button type="button" class="btnGhost" id="roverApplyCamera" ${solDisabled}>Apply</button>
       </div>
-
-      ${
-        !earthMode && apiMore
-          ? `<button type="button" class="btnGhost roverLoadMore" id="roverLoadMore" ${loading ? 'disabled' : ''}>Load more (this sol)</button>`
-          : ''
-      }
     </div>
   `
 }

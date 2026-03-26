@@ -1,13 +1,9 @@
 /**
  * NASA imagery for Mars Today:
  * - Curiosity: Mars.nasa.gov `raw_image_items` (no API key).
- * - Home “From the Universe”: `api.nasa.gov` APOD (`VITE_NASA_API_KEY`).
  *
- * Legacy `api.nasa.gov/mars-photos` is archived (404). Mars 2020 raw_image_items
- * filtering was abandoned; APOD replaced that home section.
+ * Legacy `api.nasa.gov/mars-photos` is archived (404).
  */
-
-const NASA_API_KEY = import.meta.env.VITE_NASA_API_KEY
 
 /** Only accept MSL rows (API can return other missions). */
 function itemMatchesCuriosity(item) {
@@ -128,42 +124,6 @@ const MOCK_LATEST_BY_ROVER = {
   ],
 }
 
-/** Fallback APOD-style entries when the APOD API fails (real apod.nasa.gov image URLs). */
-const MOCK_APOD_PHOTOS = [
-  {
-    id: 'mock-apod-1',
-    img_src: 'https://apod.nasa.gov/apod/image/1503/OrionHead-Spitzer-Schmidt_1080.jpg',
-    earth_date: '2015-03-15',
-    sol: null,
-    rover: { name: 'APOD' },
-    camera: { name: 'Orion Nebula — Spitzer' },
-  },
-  {
-    id: 'mock-apod-2',
-    img_src: 'https://apod.nasa.gov/apod/image/0905/centaurusA_2mass_900.jpg',
-    earth_date: '2009-05-10',
-    sol: null,
-    rover: { name: 'APOD' },
-    camera: { name: 'Centaurus A Galaxy — 2MASS' },
-  },
-  {
-    id: 'mock-apod-3',
-    img_src: 'https://apod.nasa.gov/apod/image/0303/venus2_cortner_900.jpg',
-    earth_date: '2003-03-25',
-    sol: null,
-    rover: { name: 'APOD' },
-    camera: { name: 'Venus — Crescent' },
-  },
-  {
-    id: 'mock-apod-4',
-    img_src: 'https://apod.nasa.gov/apod/image/9604/valley_marineris_900.jpg',
-    earth_date: '1996-04-12',
-    sol: null,
-    rover: { name: 'APOD' },
-    camera: { name: 'Valles Marineris — Mars Global Surveyor' },
-  },
-]
-
 function getMockLatestPhotos(rover) {
   const key = String(rover || '').toLowerCase()
   const list = MOCK_LATEST_BY_ROVER[key]
@@ -212,11 +172,6 @@ export async function getLatestPhotos(rover) {
   }
 }
 
-/**
- * Random APOD images (`count=16` request, image-only, first 12).
- *
- * @returns {{ photos: object[], usedMock: boolean }}
- */
 /** Curiosity (MSL) landing — sol 0 reference (UTC noon). */
 const MSL_LANDING_MS = Date.parse('2012-08-06T12:00:00Z')
 /** Mean Martian sol length in milliseconds (~24h 39m 35s). */
@@ -236,17 +191,56 @@ export function estimateSolFromEarthDate(earthDate) {
 /**
  * Instrument codes returned by `raw_image_items` for MSL (subset; "All" = no filter).
  */
+const CAMERA_NAMES = {
+  '': 'All cameras',
+  FHAZ: 'Front Hazard Cam',
+  RHAZ: 'Rear Hazard Cam',
+  MAST: 'Mast Camera',
+  CHEMCAM: 'Chemistry Camera',
+  MAHLI: 'Hand Lens Imager',
+  MARDI: 'Descent Imager',
+  NAVCAM: 'Navigation Camera',
+  PANCAM: 'Panoramic Camera',
+  NAVCAM_LEFT: 'Navigation Camera Left',
+  NAVCAM_RIGHT: 'Navigation Camera Right',
+  NAV_LEFT_B: 'Navigation Camera Left B',
+  NAV_RIGHT_B: 'Navigation Camera Right B',
+  MAST_LEFT: 'Mast Camera Left',
+  MAST_RIGHT: 'Mast Camera Right',
+  MCZ_LEFT: 'Mastcam-Z Left',
+  MCZ_RIGHT: 'Mastcam-Z Right',
+  FRONT_HAZCAM_LEFT_A: 'Front Hazcam Left',
+  FRONT_HAZCAM_RIGHT_A: 'Front Hazcam Right',
+  REAR_HAZCAM_LEFT: 'Rear Hazcam Left',
+  REAR_HAZCAM_RIGHT: 'Rear Hazcam Right',
+  SHERLOC_WATSON: 'WATSON Camera',
+}
+
+export function cameraCodeToLabel(cameraCode) {
+  const code = String(cameraCode || '').trim()
+  const exact = CAMERA_NAMES[code]
+  if (exact) return exact
+
+  // Fallback for unknown codes (best-effort prettification).
+  return code
+    .replace(/_/g, ' ')
+    .split(' ')
+    .filter(Boolean)
+    .map((w) => `${w.slice(0, 1).toUpperCase()}${w.slice(1).toLowerCase()}`)
+    .join(' ')
+}
+
 export const CURIOSITY_INSTRUMENTS = [
-  { value: '', label: 'All cameras' },
-  { value: 'MAST_LEFT', label: 'Mastcam Left' },
-  { value: 'MAST_RIGHT', label: 'Mastcam Right' },
-  { value: 'NAV_LEFT_B', label: 'Navcam Left B' },
-  { value: 'NAV_RIGHT_B', label: 'Navcam Right B' },
-  { value: 'FHAZ', label: 'Front Hazcam' },
-  { value: 'RHAZ', label: 'Rear Hazcam' },
-  { value: 'CHEMCAM', label: 'ChemCam' },
-  { value: 'MAHLI', label: 'MAHLI' },
-  { value: 'MARDI', label: 'MARDI' },
+  { value: '', label: cameraCodeToLabel('') },
+  { value: 'MAST_LEFT', label: cameraCodeToLabel('MAST_LEFT') },
+  { value: 'MAST_RIGHT', label: cameraCodeToLabel('MAST_RIGHT') },
+  { value: 'NAV_LEFT_B', label: cameraCodeToLabel('NAV_LEFT_B') },
+  { value: 'NAV_RIGHT_B', label: cameraCodeToLabel('NAV_RIGHT_B') },
+  { value: 'FHAZ', label: cameraCodeToLabel('FHAZ') },
+  { value: 'RHAZ', label: cameraCodeToLabel('RHAZ') },
+  { value: 'CHEMCAM', label: cameraCodeToLabel('CHEMCAM') },
+  { value: 'MAHLI', label: cameraCodeToLabel('MAHLI') },
+  { value: 'MARDI', label: cameraCodeToLabel('MARDI') },
 ]
 
 async function fetchRawImageItemsUrl(url) {
@@ -382,43 +376,4 @@ export async function getCuriosityPhotosByEarthDate(earthDate, { camera = '' } =
   }
 }
 
-export async function getAPODPhotos() {
-  const key = String(NASA_API_KEY || '').trim()
-  if (!key) {
-    console.warn('[nasa] VITE_NASA_API_KEY missing — using APOD mock photos')
-    return { photos: [...MOCK_APOD_PHOTOS], usedMock: true }
-  }
-
-  try {
-    const url = `https://api.nasa.gov/planetary/apod?count=16&api_key=${encodeURIComponent(key)}`
-    const res = await fetch(url)
-    if (!res.ok) {
-      throw new Error(`APOD HTTP ${res.status}`)
-    }
-    const data = await res.json()
-    const items = Array.isArray(data) ? data : data ? [data] : []
-    const images = items.filter(
-      (item) =>
-        item &&
-        item.media_type === 'image' &&
-        typeof item.url === 'string' &&
-        item.url.length > 0,
-    )
-    const picked = images.slice(0, 12)
-    if (picked.length === 0) {
-      throw new Error('APOD: no image entries after filter')
-    }
-    const photos = picked.map((item) => ({
-      id: item.date,
-      img_src: item.url,
-      earth_date: item.date,
-      sol: null,
-      rover: { name: 'APOD' },
-      camera: { name: item.title || 'APOD' },
-    }))
-    return { photos, usedMock: false }
-  } catch (err) {
-    console.warn('[nasa] APOD unavailable — using mock photos', err)
-    return { photos: [...MOCK_APOD_PHOTOS], usedMock: true }
-  }
-}
+// APOD removed from the app: only Curiosity raw_image_items remain.

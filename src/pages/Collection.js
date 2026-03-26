@@ -3,14 +3,11 @@ import {
   countPhotosInCollection,
   fetchCollectionById,
   fetchCollectionPhotos,
-  fetchCommunityCollections,
   fetchMyCollections,
   collectionRowToPhoto,
-  setCollectionPublic,
 } from '../collections.js'
 import { PhotoCard } from '../components/PhotoCard.js'
 import { openPhotoModal } from '../components/PhotoModal.js'
-import { fetchCommentCountsForRows } from '../comments.js'
 import {
   alertIfFavouriteFailed,
   fetchFavouriteKeys,
@@ -70,28 +67,21 @@ export async function renderCollectionsList() {
       <header class="topBar">
         <div>
           <h1 class="appTitle">Collections</h1>
-          <p class="subtitle muted">Your boards and public collections from the community.</p>
+          <p class="subtitle muted">Your photo collections.</p>
         </div>
         <a class="accentPill mono link" href="#/home" style="text-decoration:none;align-self:center">← Home</a>
       </header>
       <main class="pageBody">
         <p class="muted" id="collectionsLoading">Loading…</p>
         <section id="collectionsMineSection" hidden></section>
-        <section id="collectionsCommunitySection" hidden></section>
       </main>
     </div>
   `
 
   const loading = root.querySelector('#collectionsLoading')
   const mineSec = root.querySelector('#collectionsMineSection')
-  const commSec = root.querySelector('#collectionsCommunitySection')
-
-  const [mineRaw, communityRaw] = await Promise.all([
-    fetchMyCollections(),
-    fetchCommunityCollections(),
-  ])
+  const [mineRaw] = await Promise.all([fetchMyCollections()])
   const mine = await withCounts(mineRaw)
-  const community = await withCounts(communityRaw)
 
   if (loading) loading.hidden = true
 
@@ -108,40 +98,6 @@ export async function renderCollectionsList() {
       .map(
         (c) => `
       <article class="collectionCard" data-collection-id="${c.id}">
-        <a class="collectionCardLink" href="#/collections/${c.id}">
-          <h3 class="collectionCardTitle">${escapeHtml(c.name)}</h3>
-          <p class="collectionCardMeta mono muted">${c._count} photo${c._count === 1 ? '' : 's'}</p>
-        </a>
-        <label class="collectionPublicToggle mono">
-          <input type="checkbox" data-collection-id="${c.id}" ${c.is_public ? 'checked' : ''} />
-          Public
-        </label>
-      </article>
-    `,
-      )
-      .join('')
-
-    mineGrid.querySelectorAll('.collectionPublicToggle input').forEach((cb) => {
-      cb.addEventListener('change', async () => {
-        const id = Number(cb.dataset.collectionId)
-        await setCollectionPublic(id, cb.checked)
-      })
-    })
-  }
-
-  commSec.hidden = false
-  commSec.innerHTML = `
-    <h2 class="collectionsSectionTitle">Community collections</h2>
-    <div class="collectionsGrid" id="collectionsCommunityGrid"></div>
-  `
-  const commGrid = commSec.querySelector('#collectionsCommunityGrid')
-  if (!community.length) {
-    commGrid.innerHTML = `<p class="muted">No other public collections yet.</p>`
-  } else {
-    commGrid.innerHTML = community
-      .map(
-        (c) => `
-      <article class="collectionCard collectionCard--community">
         <a class="collectionCardLink" href="#/collections/${c.id}">
           <h3 class="collectionCardTitle">${escapeHtml(c.name)}</h3>
           <p class="collectionCardMeta mono muted">${c._count} photo${c._count === 1 ? '' : 's'}</p>
@@ -195,23 +151,8 @@ export async function renderCollectionDetail(collectionId) {
     return
   }
 
-  const isOwnCollection = col.user_id === session.user.id
-  let creatorUsername = ''
-  if (!isOwnCollection) {
-    const { data: creatorRow } = await supabase
-      .from('profiles')
-      .select('username')
-      .eq('id', col.user_id)
-      .maybeSingle()
-    creatorUsername = creatorRow?.username ? String(creatorRow.username).trim() : ''
-  }
-
   const rows = await fetchCollectionPhotos(id)
-  const rowsForCounts = rows.map((r) => ({
-    rover: r.rover,
-    nasa_photo_id: r.nasa_photo_id,
-  }))
-  const commentCounts = await fetchCommentCountsForRows(rowsForCounts)
+  const curiosityRows = (rows || []).filter((r) => r.rover !== 'apod')
   const favouriteKeys = await fetchFavouriteKeys()
 
   root.innerHTML = `
@@ -219,14 +160,9 @@ export async function renderCollectionDetail(collectionId) {
       <header class="topBar">
         <div>
           <h1 class="appTitle">${escapeHtml(col.name)}</h1>
-          <p class="subtitle muted mono">${col.is_public ? 'Public' : 'Private'} collection</p>
-          ${
-            !isOwnCollection
-              ? `<p class="collectionCreatedBy muted mono">Created by ${escapeHtml(creatorUsername || 'Unknown user')}</p>`
-              : ''
-          }
+          <p class="subtitle muted mono">Your collection</p>
         </div>
-        <a class="accentPill mono link" href="#/collections" style="text-decoration:none;align-self:center">← All collections</a>
+        <a class="accentPill mono link" href="#/collections" style="text-decoration:none;align-self:center">← Collections</a>
       </header>
       <main class="pageBody">
         <p class="muted" id="collectionDetailEmpty" hidden>This collection is empty.</p>
@@ -238,27 +174,22 @@ export async function renderCollectionDetail(collectionId) {
   const grid = root.querySelector('#collectionDetailGrid')
   const empty = root.querySelector('#collectionDetailEmpty')
 
-  if (!rows.length) {
+  if (!curiosityRows.length) {
     empty.hidden = false
     return
   }
 
-  grid.innerHTML = rows
+  grid.innerHTML = curiosityRows
     .map((row, index) => {
       const photo = collectionRowToPhoto(row)
-      const isApod = row.rover === 'apod'
-      const section = isApod ? 'apod' : 'curiosity'
-      const key = `${row.rover}:${row.nasa_photo_id}`
-      const cc = commentCounts.get(key) || 0
       return PhotoCard({
         photo,
-        roverLabel: isApod ? 'From the Universe' : 'Curiosity',
+        roverLabel: 'Curiosity',
         showSampleBadge: false,
         showFavourite: true,
-        isFavourited: favouriteKeys.has(favouriteKey(photo, section)),
-        photoSection: section,
+        isFavourited: favouriteKeys.has(favouriteKey(photo, 'curiosity')),
+        photoSection: 'curiosity',
         photoIndex: index,
-        commentCount: cc,
         interactive: true,
       })
     })
@@ -268,14 +199,12 @@ export async function renderCollectionDetail(collectionId) {
     btn.addEventListener('click', async (e) => {
       e.preventDefault()
       e.stopPropagation()
-      const section = btn.dataset.photoSection
       const i = Number(btn.dataset.photoIndex)
-      if (!section || Number.isNaN(i)) return
-      const row = rows[i]
+      if (Number.isNaN(i)) return
+      const row = curiosityRows[i]
       if (!row) return
       const photo = collectionRowToPhoto(row)
-      const src = section === 'apod' ? 'apod' : 'curiosity'
-      const res = await toggleFavourite(photo, src)
+      const res = await toggleFavourite(photo, 'curiosity')
       if (!res.ok) {
         if (res.reason !== 'auth') alertIfFavouriteFailed(res)
         return
@@ -287,18 +216,15 @@ export async function renderCollectionDetail(collectionId) {
   grid.querySelectorAll('.photoCard--interactive').forEach((card) => {
     card.addEventListener('click', (e) => {
       if (e.target.closest('.photoCardFavBtn')) return
-      const section = card.dataset.photoSection
       const i = Number(card.dataset.photoIndex)
-      if (!section || Number.isNaN(i)) return
-      const row = rows[i]
+      if (Number.isNaN(i)) return
+      const row = curiosityRows[i]
       if (!row) return
       const photo = collectionRowToPhoto(row)
-      const src = section === 'apod' ? 'apod' : 'curiosity'
-      const roverLabel = section === 'apod' ? 'From the Universe' : 'Curiosity'
       openPhotoModal({
         photo,
-        source: src,
-        roverLabel,
+        source: 'curiosity',
+        roverLabel: 'Curiosity',
         onClosed: () => renderCollectionDetail(collectionId),
       })
     })

@@ -25,34 +25,13 @@ export async function fetchMyCollections() {
   return data || []
 }
 
-export async function fetchCommunityCollections() {
-  if (!isSupabaseConfigured()) return []
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  const uid = session?.user?.id
-  if (!uid) return []
-
-  const { data, error } = await supabase
-    .from('collections')
-    .select('*')
-    .eq('is_public', true)
-    .neq('user_id', uid)
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    console.warn('[collections] community failed', error)
-    return []
-  }
-  return data || []
-}
-
 export async function countPhotosInCollection(collectionId) {
   if (!isSupabaseConfigured()) return 0
   const { count, error } = await supabase
     .from('collection_photos')
     .select('id', { count: 'exact', head: true })
     .eq('collection_id', collectionId)
+    .eq('rover', 'curiosity')
 
   if (error) {
     console.warn('[collections] count failed', error)
@@ -82,6 +61,7 @@ export async function fetchCollectionPhotos(collectionId) {
     .from('collection_photos')
     .select('*')
     .eq('collection_id', collectionId)
+    .eq('rover', 'curiosity')
     .order('added_at', { ascending: false })
 
   if (error) {
@@ -137,21 +117,11 @@ export async function createCollection(name) {
 
   const { data, error } = await supabase
     .from('collections')
-    .insert({ user_id: session.user.id, name: n, is_public: true })
+    .insert({ user_id: session.user.id, name: n })
     .select('id')
     .single()
 
   return { ok: !error, id: data?.id, reason: error?.message }
-}
-
-export async function setCollectionPublic(collectionId, isPublic) {
-  if (!isSupabaseConfigured()) return { ok: false }
-  const { error } = await supabase
-    .from('collections')
-    .update({ is_public: isPublic })
-    .eq('id', collectionId)
-
-  return { ok: !error, reason: error?.message }
 }
 
 export async function addPhotoToCollection(collectionId, photo, source) {

@@ -7,12 +7,14 @@
 
 ## Project Overview
 
-**Mars Today** is a Mars rover photo journal web app. Every sol (Martian day), NASA's rovers
-send back photos from the surface of Mars. This app makes that data beautiful and social —
-users browse daily galleries by rover and sol, favourite shots, leave comments, and build
-personal collections.
+**Mars Today** is a Mars rover photo journal web app. Every sol (Martian day), NASA's Curiosity
+rover sends back photos from the surface of Mars. This app makes that data beautiful and
+personal — users browse daily photo galleries by sol and camera, favourite shots, and build
+their own private collections.
 
-**No AI is used in this app.** It is a pure data + community product.
+Browsing requires no account. Creating an account unlocks favourites and personal collections.
+
+**No AI is used in this app.** It is a pure data + personal collection product.
 
 ---
 
@@ -20,9 +22,9 @@ personal collections.
 
 1. Looks impressive on GitHub — good README, clean code, live demo link
 2. Hosted on GitHub Pages (free, static only — no server)
-3. New content appears automatically every day (NASA sends new photos)
-4. Users can sign up, favourite photos, comment, build collections
-5. Browsable without an account (read-only public access)
+3. New content appears automatically every sol (NASA sends new photos)
+4. Users can sign up, favourite photos, and build personal collections
+5. Fully browsable without an account (read-only public access)
 
 ---
 
@@ -33,7 +35,7 @@ personal collections.
 | Frontend | Vanilla JS + HTML + CSS | No framework = simpler for GitHub Pages |
 | Dev server | Vite | Fast HMR, bundles for production |
 | Database + Auth | Supabase | Free tier, works client-side with RLS |
-| NASA data | Mars `raw_image_items` (no key) + APOD (`api.nasa.gov`, `VITE_NASA_API_KEY`) |
+| NASA data | Mars `raw_image_items` (no key) |
 | Hosting | GitHub Pages | Free, deploys from `dist/` via gh-pages |
 | Deploy | `gh-pages` npm package | One command: `npm run deploy` |
 
@@ -61,24 +63,68 @@ mars-today/
     ├── nasa.js            ← NASA API functions
     ├── router.js          ← hash router (uses routeUtils)
     ├── routeUtils.js      ← parse `#/path?query` → path + URLSearchParams
-    ├── comments.js        ← Supabase comments (batch counts, CRUD)
     ├── collections.js     ← collections + collection_photos helpers
     ├── favourites.js      ← favourites toggle + row → photo shape
     ├── components/
     │   ├── Nav.js         ← top navigation bar
     │   ├── PhotoCard.js   ← individual photo tile
-    │   ├── PhotoModal.js  ← full-screen photo + comments
+    │   ├── PhotoModal.js  ← full-screen photo + metadata
     │   ├── RoverGallery.js← grid of photos for a sol
-    │   ├── SolPicker.js   ← Curiosity browse bar (sol / Earth date / camera)
+    │   ├── SolPicker.js   ← sol prev/next + camera filter
     │   └── Auth.js        ← login / signup modal
     └── pages/
-        ├── Home.js        ← today's featured photos, all rovers
-        ├── Rover.js       ← `#/rover/curiosity` — sol / Earth date / camera browse
-        ├── Favourites.js  ← hearted photos
+        ├── Home.js        ← core page: minimal hero + sol picker + Curiosity photo grid
+        ├── Favourites.js  ← hearted photos (`#/favourites`)
         ├── Collection.js  ← `#/collections` list + `#/collections/:id` grid
-        ├── Rover.js       ← browse a specific rover by sol (planned)
         └── Profile.js     ← user profile page (planned)
 ```
+
+---
+
+## Page Map
+
+| Route | Page | Notes |
+|-------|------|-------|
+| `#/` | Home | **Core experience.** Minimal hero, sol picker, Curiosity grid |
+| `#/favourites` | Favourites | Auth required |
+| `#/collections` | Collections list | Auth required |
+| `#/collections/:id` | Collection grid | Auth required |
+
+> The old `#/rover/curiosity` route is **removed**. Home IS the rover browser.
+
+---
+
+## Home Page Design
+
+The home page is the entire app for most visitors. It should feel approachable to someone
+who has never heard of a sol or knows nothing about NASA cameras.
+
+### Layout (top → bottom)
+
+1. **Minimal hero strip** — app name + one friendly sentence:
+   > *"Real photos beamed back from Mars — updated every sol (a Martian day, ~24h 37m)."*
+   Keep it to 1–2 lines max. No paragraphs.
+
+2. **Sol controls bar** — prev sol `‹` · current sol number · next sol `›` · camera dropdown.
+   Sol is the only navigation unit. **No Earth date input field** (removed — was unreliable and
+   confusing). Earth date is shown on hover over each photo card (already implemented).
+
+3. **Photo grid** — Curiosity photos for the selected sol. Responsive: 1 col mobile → 2 tablet
+→ 3+ desktop. Skeleton loaders while fetching. Lazy-loaded images. If a camera filter returns
+zero photos for the current sol, show an explicit empty-state panel with a quick reset to
+“All cameras”.
+
+4. **Load more** button below the grid if more photos exist for that sol.
+
+### Camera filter
+
+Show a `<select>` with human-readable camera names (e.g. "Mast Camera", "Navigation Camera").
+Default: "All cameras". Filter is applied client-side on the `raw_image_items` response.
+
+### What to remove from the old Home
+- APOD "From the Universe" column → removed entirely from the app
+- Section bridge copy and welcome explainer strip → replaced by the single hero sentence
+- Sign-up nudge banner → remove; auth prompt appears naturally when a user tries to favourite
 
 ---
 
@@ -89,47 +135,32 @@ These go in `.env` (local only) and get baked into the bundle at build time by V
 # .env
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key-here
-VITE_NASA_API_KEY=your-nasa-api-key-here
 ```
 
 **CRITICAL RULES:**
 - `VITE_` prefix = Vite bakes it into the bundle (accessible as `import.meta.env.VITE_*`)
 - NEVER use the Supabase `service_role` key — only the `anon` key
 - The anon key is safe to expose publicly IF RLS is enabled on all tables (it is — see below)
-- **APOD** on the Home page uses `VITE_NASA_API_KEY` (same key as https://api.nasa.gov — free tier). Curiosity rover imagery uses Mars.nasa.gov’s public `raw_image_items` API — **no key** for that feed.
 - `.env` must be in `.gitignore` — commit `.env.example` with blank values instead
 
 ---
 
-## NASA data sources (Home page)
-
-The legacy **Mars Rover Photos API** at `https://api.nasa.gov/mars-photos/api/v1` is **archived by NASA** and returns **404**. Curiosity uses Mars.nasa.gov’s **`raw_image_items`** JSON API (no key). The second Home column is **APOD** (Astronomy Picture of the Day), not Mars 2020 — NASA’s Mars 2020 `raw_image_items` filters were unreliable, so that section was replaced with thematic space imagery.
+## NASA Data Sources
 
 ### Curiosity — `GET /raw_image_items` (Mars.nasa.gov)
 
 **Base URL:** `https://mars.nasa.gov/api/v1` — **Auth:** none.
 
-Primary query uses `mission=msl` and the same sort order as NASA’s MSL raw-images page. If `items` is empty, `src/nasa.js` retries older `condition_1=msl:mission` URLs. Rows are **filtered to `item.mission === 'msl'`** so stray mission data is ignored.
+Primary query uses `mission=msl`. If `items` is empty, `src/nasa.js` retries older
+`condition_1=msl:mission` URLs. Rows are **filtered to `item.mission === 'msl'`**.
 
 **Example:**
 ```
 GET https://mars.nasa.gov/api/v1/raw_image_items/?order=sol+desc%2Cinstrument_sort+asc%2Csample_type_sort+asc%2C+date_taken+desc&per_page=12&page=0&mission=msl
 ```
 
-**Response:** `{ items: [ ... ] }` — each item includes `id`, `sol`, `instrument`, `url`, `date_taken`, `mission` (expect `msl` for Curiosity).
-
-### Home — APOD (`getAPODPhotos()`)
-
-**Endpoint:** `GET https://api.nasa.gov/planetary/apod?count=16&api_key=VITE_NASA_API_KEY`
-
-Returns **an array** when `count` > 1. Each object includes `title`, `url`, `date`, `media_type` (`image` | `video`), `explanation`.
-
-**Required behavior:** keep only `media_type === 'image'` entries (videos are often YouTube links — exclude them). Take the **first 12** images after filtering. Map each to the app photo shape: `id: date`, `img_src: url`, `earth_date: date`, `sol: null`, `rover: { name: 'APOD' }`, `camera: { name: title }`.
-
-On failure or missing key: `{ photos: MOCK_APOD_PHOTOS, usedMock: true }` (hardcoded `apod.nasa.gov` image URLs).
-
-- Curiosity (MSL): active since 2012-08-06
-- Opportunity / Spirit: not wired in Phase 1
+**Response:** `{ items: [ ... ] }` — each item includes `id`, `sol`, `instrument`, `url`,
+`date_taken`, `mission`.
 
 ### Camera Names (for display)
 ```js
@@ -154,14 +185,9 @@ const CAMERA_NAMES = {
 }
 ```
 
-### nasa.js — Mars imagery + APOD + mock fallbacks
+### nasa.js
 ```js
-// src/nasa.js
-// getLatestPhotos('curiosity') — mars.nasa.gov raw_image_items; mock: NASA Images JPEGs.
-// getAPODPhotos() — api.nasa.gov/planetary/apod?count=16; images only; mock: MOCK_APOD_PHOTOS.
-
 export async function getLatestPhotos(rover) { ... } // 'curiosity' only
-export async function getAPODPhotos() { ... }
 export function mapRawImageItemToPhoto(item) { ... }
 ```
 
@@ -171,7 +197,6 @@ export function mapRawImageItemToPhoto(item) { ... }
 
 ### Database Tables
 
-Run this SQL in the Supabase SQL Editor to create all tables:
 ```sql
 CREATE TABLE profiles (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
@@ -192,15 +217,6 @@ CREATE TABLE favourites (
   img_src TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id, nasa_photo_id)
-);
-
-CREATE TABLE comments (
-  id BIGSERIAL PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  nasa_photo_id INTEGER NOT NULL,
-  rover TEXT NOT NULL,
-  body TEXT NOT NULL CHECK (char_length(body) > 0 AND char_length(body) <= 500),
-  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE collections (
@@ -224,15 +240,11 @@ CREATE TABLE collection_photos (
 );
 ```
 
-**Existing databases:** add the column once in the SQL Editor:
-
-```sql
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS email TEXT;
-```
-
-The app syncs `profiles.email` from Supabase Auth on each login (`ensureProfile`). Because `profiles` uses `SELECT USING (true)`, that email is readable in the client for comment labels; tighten RLS only if you need to hide it.
+> `comments` table is **removed** from the schema. If it exists in your database, it can be
+> left in place safely — it is simply unused by the app.
 
 ### Row Level Security (RLS) Policies
+
 ```sql
 -- PROFILES
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
@@ -252,21 +264,10 @@ CREATE POLICY "Users can insert their own favourites"
 CREATE POLICY "Users can delete their own favourites"
   ON favourites FOR DELETE USING (auth.uid() = user_id);
 
--- COMMENTS (use explicit roles so inserts work with the anon key + user JWT)
-ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Comments are public"
-  ON comments FOR SELECT TO public USING (true);
-CREATE POLICY "Authenticated users can comment"
-  ON comments FOR INSERT TO authenticated
-  WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete their own comments"
-  ON comments FOR DELETE TO authenticated
-  USING (auth.uid() = user_id);
-
 -- COLLECTIONS
 ALTER TABLE collections ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Public collections are viewable by all"
-  ON collections FOR SELECT USING (is_public = true OR auth.uid() = user_id);
+CREATE POLICY "Users can view their own collections"
+  ON collections FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can create their own collections"
   ON collections FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update their own collections"
@@ -281,8 +282,7 @@ CREATE POLICY "Collection photos follow collection visibility"
   USING (
     EXISTS (
       SELECT 1 FROM collections
-      WHERE id = collection_id
-      AND (is_public = true OR user_id = auth.uid())
+      WHERE id = collection_id AND user_id = auth.uid()
     )
   );
 CREATE POLICY "Collection owners can add photos"
@@ -303,46 +303,11 @@ CREATE POLICY "Collection owners can remove photos"
   );
 ```
 
-### RLS troubleshooting (`violates row-level security policy`)
-
-1. In **SQL Editor**, inspect policies:  
-   `SELECT policyname, cmd, roles, qual, with_check FROM pg_policies WHERE schemaname = 'public' AND tablename = 'comments';`
-2. If `comments` still blocks inserts, **drop every policy on that table** and recreate (avoids typos / duplicates). Example for `comments` only:
-
-```sql
-DO $$
-DECLARE r record;
-BEGIN
-  FOR r IN (
-    SELECT policyname FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'comments'
-  ) LOOP
-    EXECUTE format('DROP POLICY IF EXISTS %I ON public.comments', r.policyname);
-  END LOOP;
-END $$;
-
-ALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;
-
-GRANT SELECT ON public.comments TO anon, authenticated;
-GRANT INSERT, DELETE ON public.comments TO authenticated;
-
-CREATE POLICY "comments_select_public"
-  ON public.comments FOR SELECT TO public USING (true);
-
-CREATE POLICY "comments_insert_authenticated_own_row"
-  ON public.comments FOR INSERT TO authenticated
-  WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "comments_delete_own"
-  ON public.comments FOR DELETE TO authenticated
-  USING (auth.uid() = user_id);
-```
-
-3. **Sign out and sign in** after policy changes, then hard-refresh the app.
+> Collections are now **personal only** — the old `is_public` community browse is removed.
+> The `is_public` column can stay in the DB but is no longer surfaced in the UI.
 
 ### supabase.js — Client singleton
 ```js
-// src/supabase.js
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -398,32 +363,32 @@ dist/
 
 ---
 
-## App Features — Build in this order
+## App Features
 
-### Phase 1 — Core browsing (no auth needed)
-- [x] Home page: Curiosity (Mars) + APOD “From the Universe” (welcome explainer strip, section bridge copy, APOD refresh, Curiosity hover shows camera · sol · date, sign-up nudge when logged out)
-- [x] Rover page: `#/rover/curiosity` — browse by sol with prev/next, optional Earth date search, camera filter (MSL `instrument`), load more per sol
-- [x] Photo modal: full-size image, metadata (rover, camera, earth date, sol)
-- [x] Camera filter: on rover page (`CURIOSITY_INSTRUMENTS` + client filter on `raw_image_items`)
-- [x] Date picker: Earth date (`YYYY-MM-DD`) on rover page — searches nearby estimated sols for matching `date_taken`
+### Core (done)
+- [x] Home page: minimal hero + sol picker (prev/next sol + camera filter) + Curiosity photo grid
+- [x] Sol navigation — prev/next sol only. No Earth date input field.
+- [x] Earth date shown on photo card hover (not as a search input)
+- [x] Camera filter: human-readable names, client-side filter on `raw_image_items`
+- [x] Photo modal: full-size image + metadata (rover, camera, earth date, sol)
+- [x] Load more photos per sol
+- [x] Skeleton loaders, lazy images
 
-### Phase 2 — Auth
+### Auth
 - [x] Sign up / Log in modal (Supabase Auth, email + password)
 - [x] Profile created on first login
 - [x] Auth state persisted across page refreshes
 
-### Phase 3 — Social
-- [x] Favourite a photo (heart button, requires auth + Supabase)
-- [x] View your favourites page (`#/favourites`)
-- [x] Leave a comment on a photo (`PhotoModal`, `comments` table; author from `profiles.username`)
-- [x] See comment count on photo cards (batch fetch; badge when count > 0)
+### Personal features (auth required)
+- [x] Favourite a photo (heart button → `favourites` table)
+- [x] View favourites page (`#/favourites`)
+- [x] Create named collections + add photos (`#/collections`, `#/collections/:id`)
 
-### Phase 4 — Collections
-- [x] Create a named collection (modal + `#/collections`)
-- [x] Add any photo to a collection (`collection_photos`, modal 📁 popover)
-- [x] View a collection (grid) — `#/collections/:id`
-- [x] Make collection public/private (toggle on list cards)
-- [x] Browse public collections from other users (“Community collections” on `#/collections`)
+### Removed from scope
+- ✗ Community collections (public browse of other users' collections)
+- ✗ Comments on photos
+- ✗ Earth date search input
+- ✗ Separate `#/rover/curiosity` route (merged into Home)
 
 ---
 
@@ -431,7 +396,8 @@ dist/
 
 - **Dark theme only.** Space is dark. Use deep blacks and very dark grays.
 - **The photos are the hero.** Let NASA's images breathe — minimal UI chrome.
-- **Mars color palette:** accent color is Mars red `#c1440e` or dust orange `#e07a47`
+- **Mars color palette:** accent is Mars red `#c1440e` or dust orange `#e07a47`
+- **Approachable language.** Visitors likely don't know what a sol is. Explain lightly in context — never assume knowledge.
 - **Monospace font for technical data** (sol numbers, Earth dates, camera names)
 - **Mobile first.** Photo grid is responsive — 1 col mobile, 2 tablet, 3+ desktop.
 - **Skeleton loaders** while photos fetch — never a blank white flash.
@@ -444,27 +410,19 @@ dist/
 1. **No server.** Everything runs in the browser. Supabase is the only backend.
 2. **No framework.** Vanilla JS only. No React, Vue, or Svelte.
 3. **No TypeScript.** Plain `.js` files.
-4. **Home grid** requests **12** Curiosity images from `raw_image_items` and **12** APOD images (`count=16` then filter to images); add pagination later if needed.
-5. **Supabase free tier**: 500MB database, 50k MAU — more than enough.
-6. **Always run `npm run deploy`** to publish changes to GitHub Pages.
+4. **Supabase free tier**: 500MB database, 50k MAU — more than enough.
+5. **Always run `npm run deploy`** to publish changes to GitHub Pages.
 
 ---
 
 ## Common Patterns
 
-### Fetching Mars rover photos
+### Fetching Curiosity photos by sol
 ```js
-// Curiosity — primary `mission=msl` (see `src/nasa.js` for fallbacks)
 const res = await fetch(
-  'https://mars.nasa.gov/api/v1/raw_image_items/?order=sol+desc%2Cinstrument_sort+asc%2Csample_type_sort+asc%2C+date_taken+desc&per_page=12&page=0&mission=msl',
+  `https://mars.nasa.gov/api/v1/raw_image_items/?order=sol+desc%2Cinstrument_sort+asc%2Csample_type_sort+asc%2C+date_taken+desc&per_page=24&page=0&mission=msl&sol=${sol}`
 )
 const { items } = await res.json()
-```
-
-### Fetching APOD (Home)
-```js
-import { getAPODPhotos } from './nasa.js'
-const { photos, usedMock } = await getAPODPhotos()
 ```
 
 ### Checking auth state
@@ -513,7 +471,7 @@ After any user correction, write what was learned to `tasks/lessons.md`.
 ## Git Workflow
 ```bash
 git add .
-git commit -m "feat: add photo modal with full-size image and metadata"
+git commit -m "feat: consolidate rover browser into home page"
 git push origin main
 npm run deploy
 ```
@@ -524,10 +482,10 @@ npm run deploy
 ```bash
 npm install
 cp .env.example .env
-# Edit .env with your Supabase URL + anon key
+# Edit .env with your Supabase URL + anon key + NASA API key
 npm run dev
 ```
 
 ---
 
-*Last updated: Phase 1 rover browse (`#/rover/curiosity`, sol / Earth date / camera).*
+*Last updated: Scope simplification — Curiosity browser is now Home; removed comments, community collections, Earth date search, and separate rover route.*

@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../supabase.js'
 import { openAuthModal } from './Auth.js'
+import { cameraCodeToLabel } from '../nasa.js'
 import {
   alertIfFavouriteFailed,
   fetchFavouriteKeys,
@@ -7,11 +8,6 @@ import {
   isPhotoFavourited,
   toggleFavourite,
 } from '../favourites.js'
-import {
-  deleteComment,
-  fetchCommentsForPhoto,
-  postComment,
-} from '../comments.js'
 import {
   addPhotoToCollection,
   createCollection,
@@ -26,17 +22,6 @@ function escapeHtml(s) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
-}
-
-function formatTimestamp(iso) {
-  try {
-    return new Date(iso).toLocaleString(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    })
-  } catch {
-    return String(iso || '')
-  }
 }
 
 export function closePhotoModal() {
@@ -64,7 +49,7 @@ export function openPhotoModal({ photo, source, roverLabel, onClosed } = {}) {
   overlay.setAttribute('aria-modal', 'true')
 
   const roverName = photo.rover?.name || roverLabel || 'Rover'
-  const cameraName = photo.camera?.name || 'Camera'
+  const cameraLabel = photo.camera?.name ? cameraCodeToLabel(photo.camera.name) : 'Camera'
   const earth = photo.earth_date || '—'
   const sol = photo.sol != null && photo.sol !== '' ? String(photo.sol) : '—'
 
@@ -74,7 +59,7 @@ export function openPhotoModal({ photo, source, roverLabel, onClosed } = {}) {
       <div class="photoModalGrid">
         <div class="photoModalImgCol">
           <div class="photoModalImgWrap">
-            <img class="photoModalImg" src="${escapeHtml(photo.img_src || '')}" alt="${escapeHtml(`${roverName} — ${cameraName}`)}" />
+            <img class="photoModalImg" src="${escapeHtml(photo.img_src || '')}" alt="${escapeHtml(`${roverName} — ${cameraLabel}`)}" />
           </div>
           <div class="photoModalToolbar" id="photoModalToolbar">
             <button type="button" class="photoModalFavBtn" id="photoModalFavBtn" aria-label="Favourite" hidden>
@@ -89,15 +74,9 @@ export function openPhotoModal({ photo, source, roverLabel, onClosed } = {}) {
         <div class="photoModalSide">
           <div class="photoModalMeta">
             <p class="photoModalMetaLine mono"><span class="muted">Rover</span> ${escapeHtml(roverName)}</p>
-            <p class="photoModalMetaLine mono"><span class="muted">Camera</span> ${escapeHtml(String(cameraName).replace(/_/g, ' '))}</p>
+            <p class="photoModalMetaLine mono"><span class="muted">Camera</span> ${escapeHtml(cameraLabel)}</p>
             <p class="photoModalMetaLine mono"><span class="muted">Earth date</span> ${escapeHtml(earth)}</p>
             <p class="photoModalMetaLine mono"><span class="muted">Sol</span> ${escapeHtml(sol)}</p>
-          </div>
-          <div class="photoModalComments" id="photoModalComments">
-            <h3 class="photoModalCommentsTitle">Comments</h3>
-            <p class="muted photoModalCommentsLoading" id="photoModalCommentsLoading">Loading…</p>
-            <ul class="photoModalCommentList" id="photoModalCommentList" hidden></ul>
-            <div class="photoModalComposer" id="photoModalComposer"></div>
           </div>
         </div>
       </div>
@@ -123,14 +102,10 @@ export function openPhotoModal({ photo, source, roverLabel, onClosed } = {}) {
   const collWrap = overlay.querySelector('#photoModalCollWrap')
   const folderBtn = overlay.querySelector('#photoModalFolderBtn')
   const popover = overlay.querySelector('#photoModalCollPopover')
-  const listEl = overlay.querySelector('#photoModalCommentList')
-  const loadingEl = overlay.querySelector('#photoModalCommentsLoading')
-  const composerEl = overlay.querySelector('#photoModalComposer')
 
   let favouriteKeys = new Set()
   let membership = new Set()
   let myCollections = []
-  let currentUserId = null
   let popoverOpen = false
 
   function onDocMouseDown(e) {
@@ -242,101 +217,28 @@ export function openPhotoModal({ photo, source, roverLabel, onClosed } = {}) {
     if (!isSupabaseConfigured()) {
       favBtn.hidden = true
       collWrap.hidden = true
-      composerEl.innerHTML =
-        '<p class="muted">Sign in to comment.</p> <a href="#" class="link" id="photoModalSignIn">Sign in</a>'
-      composerEl.querySelector('#photoModalSignIn')?.addEventListener('click', (e) => {
-        e.preventDefault()
-        openAuthModal({ mode: 'signin' })
-      })
       return
     }
 
     const {
       data: { session },
     } = await supabase.auth.getSession()
-    currentUserId = session?.user?.id ?? null
+    const user = session?.user ?? null
 
-    if (session?.user) {
-      favBtn.hidden = false
-      collWrap.hidden = false
-      favouriteKeys = await fetchFavouriteKeys()
-      const fav = isPhotoFavourited(favouriteKeys, photo, source)
-      favBtn.querySelector('.photoModalFavIcon').textContent = fav ? '❤️' : '♡'
-      favBtn.setAttribute('aria-pressed', fav ? 'true' : 'false')
+    // Favourites: show heart for logged-out users; collections require auth.
+    favBtn.hidden = false
+    collWrap.hidden = !user
 
+    favouriteKeys = user ? await fetchFavouriteKeys() : new Set()
+
+    const fav = isPhotoFavourited(favouriteKeys, photo, source)
+    favBtn.querySelector('.photoModalFavIcon').textContent = fav ? '❤️' : '♡'
+    favBtn.setAttribute('aria-pressed', fav ? 'true' : 'false')
+
+    if (user) {
       myCollections = await fetchMyCollections()
       membership = await fetchMembershipCollectionIds(photo, source)
-
-      composerEl.innerHTML = `
-        <label class="photoModalLabel muted" for="photoModalCommentBody">Add a comment</label>
-        <textarea id="photoModalCommentBody" class="photoModalTextarea mono" rows="3" maxlength="500" placeholder="Up to 500 characters"></textarea>
-        <button type="button" class="btnPrimary" id="photoModalPostComment">Post</button>
-        <p class="photoModalComposerErr mono" id="photoModalComposerErr" hidden></p>
-      `
-      const postBtn = composerEl.querySelector('#photoModalPostComment')
-      const bodyEl = composerEl.querySelector('#photoModalCommentBody')
-      const errEl = composerEl.querySelector('#photoModalComposerErr')
-      postBtn.addEventListener('click', async () => {
-        errEl.hidden = true
-        const r = await postComment(photo, source, bodyEl.value)
-        if (!r.ok) {
-          errEl.textContent = r.reason === 'auth' ? 'Sign in to comment.' : String(r.reason || 'Could not post')
-          errEl.hidden = false
-          return
-        }
-        bodyEl.value = ''
-        await renderComments()
-        window.dispatchEvent(new CustomEvent('mars-comments-changed'))
-      })
-    } else {
-      favBtn.hidden = true
-      collWrap.hidden = true
-      composerEl.innerHTML =
-        '<p class="muted">Sign in to comment.</p> <a href="#" class="link" id="photoModalSignIn2">Sign in</a>'
-      composerEl.querySelector('#photoModalSignIn2')?.addEventListener('click', (e) => {
-        e.preventDefault()
-        openAuthModal({ mode: 'signin' })
-      })
     }
-  }
-
-  async function renderComments() {
-    loadingEl.hidden = false
-    listEl.hidden = true
-    const rows = await fetchCommentsForPhoto(photo, source)
-    loadingEl.hidden = true
-    listEl.hidden = false
-    if (!rows.length) {
-      listEl.innerHTML = '<li class="photoModalCommentEmpty muted">No comments yet.</li>'
-      return
-    }
-    listEl.innerHTML = rows
-      .map((c) => {
-        const own = currentUserId && c.user_id === currentUserId
-        const del = own
-          ? `<button type="button" class="photoModalCommentDel mono" data-comment-id="${c.id}">Delete</button>`
-          : ''
-        return `
-          <li class="photoModalComment" data-comment-id="${c.id}">
-            <div class="photoModalCommentHead">
-              <span class="photoModalCommentAuthor mono">${escapeHtml(c.authorLabel)}</span>
-              <span class="photoModalCommentTime mono muted">${escapeHtml(formatTimestamp(c.created_at))}</span>
-            </div>
-            <p class="photoModalCommentBody">${escapeHtml(c.body)}</p>
-            ${del}
-          </li>
-        `
-      })
-      .join('')
-
-    listEl.querySelectorAll('.photoModalCommentDel').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const id = Number(btn.dataset.commentId)
-        await deleteComment(id)
-        await renderComments()
-        window.dispatchEvent(new CustomEvent('mars-comments-changed'))
-      })
-    })
   }
 
   favBtn.addEventListener('click', async (e) => {
@@ -379,9 +281,9 @@ export function openPhotoModal({ photo, source, roverLabel, onClosed } = {}) {
   document.addEventListener('mousedown', onDocMouseDown)
 
   marsAuthHandler = () => {
-    refreshAuthUi().then(() => renderComments())
+    refreshAuthUi()
   }
   window.addEventListener('mars-auth', marsAuthHandler)
 
-  refreshAuthUi().then(() => renderComments())
+  refreshAuthUi()
 }

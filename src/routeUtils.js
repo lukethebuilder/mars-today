@@ -1,6 +1,6 @@
 /**
  * Parse `location.hash` into path + query (hash router).
- * `#/home` → `/home`, `#/rover/curiosity?sol=1` → `/rover/curiosity` + searchParams
+ * `#/home` → `/home` + optional query params
  */
 export function getHashRoute() {
   const raw = window.location.hash || '#/home'

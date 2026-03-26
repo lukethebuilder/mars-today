@@ -168,6 +168,27 @@ code {
   box-sizing: border-box;
 }
 
+/* Allow the hero/sol picker zone to opt out of the global centered text */
+.heroStrip {
+  text-align: left;
+}
+
+.heroStrip > div {
+  text-align: left;
+}
+
+.solControlsBar {
+  text-align: left;
+}
+
+.solRow {
+  justify-content: flex-start;
+}
+
+.homeCameraSelectLabel {
+  text-align: left;
+}
+
 #center {
   display: flex;
   flex-direction: column;
@@ -464,6 +485,50 @@ a {
   margin-top: 18px;
   display: grid;
   gap: 22px;
+}
+
+/* Home hero + sol navigation */
+.heroStrip {
+  margin-top: 6px;
+}
+
+.solControlsBar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.solRow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.solNavBtn {
+  min-height: 44px; /* touch target */
+  padding: 10px 14px;
+  white-space: nowrap;
+}
+
+.solNumberWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 2px 6px;
+  text-align: center;
+}
+
+.solNumber {
+  font-size: 18px;
+}
+
+.homeCameraSelectLabel {
+  width: 100%;
 }
 
 .welcomeStrip {
@@ -1011,7 +1076,8 @@ a {
 
 @media (min-width: 900px) {
   .photoModalGrid {
-    grid-template-columns: 1fr 1fr;
+    /* Keep metadata as a slim sidebar; image should feel like the hero. */
+    grid-template-columns: 2.2fr 0.8fr;
     align-items: start;
   }
 }
@@ -1025,9 +1091,15 @@ a {
 
 .photoModalImg {
   width: 100%;
-  max-height: min(70vh, 720px);
+  max-height: min(80vh, 900px);
   object-fit: contain;
   display: block;
+}
+
+@media (min-width: 900px) {
+  .photoModalSide {
+    max-width: 280px;
+  }
 }
 
 .photoModalToolbar {
